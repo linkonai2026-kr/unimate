@@ -103,7 +103,9 @@ export async function signup(_: FormState, f: FormData): Promise<FormState> {
   if (await store.getProfileByHandle(input.data.handle)) return fail(uiLang, 'handleTaken', values)
   let userId: string
   try {
-    userId = (await store.createProfile({ ...input.data, lang, passHash: hashPassword(input.data.password) })).id
+    // 평문 비밀번호는 프로필에 넣지 않는다(Supabase profiles에는 password 칸이 없어 가입이 통째로 실패했다). 해시만 저장
+    const { password, ...profile } = input.data
+    userId = (await store.createProfile({ ...profile, lang, passHash: hashPassword(password) })).id
   } catch (e) {
     // 같은 아이디로 동시에 가입하면 한쪽은 unique 제약에 걸린다
     if (await store.getProfileByHandle(input.data.handle)) return fail(uiLang, 'handleTaken', values)
