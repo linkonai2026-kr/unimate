@@ -1,8 +1,8 @@
 // 사용 통계: 이벤트 검증·자르기, 분위수, 퍼널·걸린 시간 집계, CSV 이스케이프, /stats 열쇠 확인
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   MAX_MS, clampMs, cleanMessage, computeStats, createMemoryMetrics, csvCell, eventsCsv, normalizePath, parseBatch, quantile,
-  signupsCsv, statsAllowed, statsRange, toCsv, usersCsv, type EventRow,
+  recordsToDb, signupsCsv, statsAllowed, statsRange, toCsv, usersCsv, type EventRow,
 } from '@/lib/metrics'
 
 const SID = 'a1b2c3d4-0000-4000-8000-000000000001'
@@ -191,5 +191,15 @@ describe('API', () => {
       if (old === undefined) delete process.env.STATS_KEY
       else process.env.STATS_KEY = old
     }
+  })
+})
+
+describe('recordsToDb', () => {
+  it('Vercel 운영 배포에서만 DB에 기록한다(로컬·미리보기는 버림)', () => {
+    for (const [env, want] of [['production', true], ['preview', false], ['development', false], ['', false]] as const) {
+      vi.stubEnv('VERCEL_ENV', env)
+      expect(recordsToDb()).toBe(want)
+    }
+    vi.unstubAllEnvs()
   })
 })

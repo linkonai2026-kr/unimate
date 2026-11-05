@@ -54,6 +54,8 @@ const nowMs = () => performance.now()
 /* ── 공지 화면 추적: 보인 시간(탭이 보일 때만), 카드별 화면에 보인 시간, 첫 누름까지 시간 ── */
 type NoticeView = {
   vid: string
+  /** 공지 화면 주소: 다른 화면으로 옮긴 뒤 보고해도 머문 시간이 그 공지 화면에 기록되게 */
+  path: string
   /** 이미 보고한 보인 시간(첫 누름까지 시간은 이것까지 더한다) */
   done: number
   active: number
@@ -78,10 +80,10 @@ function pauseNotices() {
 function reportNotices() {
   if (!nv) return
   pauseNotices()
-  if (nv.active >= 300) send({ kind: 'notice_dwell', scope: 'page', ms: Math.round(nv.active), vid: nv.vid })
+  if (nv.active >= 300) send({ kind: 'notice_dwell', scope: 'page', ms: Math.round(nv.active), vid: nv.vid, path: nv.path })
   let n = 0
   for (const c of nv.cards.values()) {
-    if (c.total >= 1000 && n++ < 20) send({ kind: 'notice_dwell', scope: 'notice', board: c.board, id: c.id, ms: Math.round(c.total), vid: nv.vid })
+    if (c.total >= 1000 && n++ < 20) send({ kind: 'notice_dwell', scope: 'notice', board: c.board, id: c.id, ms: Math.round(c.total), vid: nv.vid, path: nv.path })
     c.total = 0
   }
   nv.done += nv.active
@@ -89,7 +91,7 @@ function reportNotices() {
 }
 
 function startNotices() {
-  const v: NoticeView = { vid: rand(10), done: 0, active: 0, since: pageVisible() ? nowMs() : null, cards: new Map(), opened: new Set(), io: null }
+  const v: NoticeView = { vid: rand(10), path: location.pathname, done: 0, active: 0, since: pageVisible() ? nowMs() : null, cards: new Map(), opened: new Set(), io: null }
   nv = v
   try {
     v.io = new IntersectionObserver(entries => {

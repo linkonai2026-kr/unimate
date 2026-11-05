@@ -159,13 +159,18 @@ export function createSupabaseMetrics(db: SupabaseClient, now: () => number = Da
 
 const g = globalThis as typeof globalThis & { __unimateMetrics?: MetricsStore }
 
+/** 운영 배포(Vercel production)에서만 Supabase에 기록한다. 로컬 개발 서버·테스트·스크립트가 같은 DB를 써도 통계에 섞이지 않는다 */
+export const recordsToDb = () => process.env.VERCEL_ENV === 'production'
+
 export function getMetrics(): MetricsStore {
-  return (g.__unimateMetrics ??= has.db
-    ? createSupabaseMetrics(createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
-    }))
-    : createMemoryMetrics())
+  if (g.__unimateMetrics) return g.__unimateMetrics
+  if (!has.db) return (g.__unimateMetrics = createMemoryMetrics())
+  const db = createSupabaseMetrics(createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }) },
+  }))
+  // 운영이 아니면 읽기(/stats)는 그대로 운영 기록을 보여 주고, 쓰기만 버린다
+  return (g.__unimateMetrics = recordsToDb() ? db : { ...db, add: async () => {} })
 }
 
 /** 응답을 보낸 뒤 저장한다(요청 밖에서 부르면 그냥 뒤에서 돌린다). 절대 던지지 않는다 */

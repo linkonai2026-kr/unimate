@@ -65,7 +65,7 @@ Vitest는 외부 키를 비운 채로 돌아서 항상 메모리 저장소와 �
 - 브라우저 수집기(`web/src/components/Tracker.tsx`)가 화면 보기, 언어 선택, 공지 열기·읽은 시간, 도우미 버튼, 화면 오류를 `/api/events`로 보낸다. 방문객은 무작위 세션 id만 남고, 로그인한 사용자는 서버가 세션으로 확인한 계정과 함께 기록된다. IP는 저장하지 않는다.
 - 서버는 공지·식단·AI·길찾기 작업의 걸린 시간과 성공 여부를 기록한다(`web/src/lib/metrics.ts`).
 - `/stats?key=…`에서 세션·퍼널·걸린 시간(중앙값·p75·p95)·성공률·오류·사용자별 활동·가입자(아이디·닉네임·국적·언어)를 보고, `/api/stats/csv?type=events|users|signups&key=…`로 CSV를 받는다. `from`·`to`(한국 날짜)로 기간을 고른다.
-- Supabase 저장은 `schema.sql`의 `events` 표를 쓴다.
+- Supabase 저장은 `schema.sql`의 `events` 표를 쓴다. 기록은 Vercel 운영 배포(`VERCEL_ENV=production`)에서만 남고, 로컬 개발 서버·테스트·스크립트는 같은 DB를 써도 기록하지 않는다(통계 화면은 그대로 읽는다).
 
 ## 배포
 
