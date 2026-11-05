@@ -118,7 +118,7 @@ alter table grades enable row level security;
 alter table images enable row level security;
 
 -- =====================================================================================================
--- 신고·AI 검수·자동 제재(2026-11 추가). 이 블록만 따로 SQL Editor에 붙여 실행해도 되고, 여러 번 실행해도 된다
+-- 신고·AI 검수·자동 제재. 이 블록만 따로 SQL Editor에 붙여 실행해도 되고, 여러 번 실행해도 된다
 -- =====================================================================================================
 -- 위반 횟수(1·2번 경고, 3번째부터 이용 제한), 제한 끝 시각(ms), 마지막 제한 사유(규칙 id)
 alter table profiles add column if not exists violations int not null default 0;
