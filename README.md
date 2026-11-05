@@ -280,6 +280,8 @@ Vitest는 외부 키를 비운 채로 돌아서 항상 메모리 저장소와 �
 <div align="center">
 <img src="web/public/brand/symbol.png" alt="" width="48">
 <br>
+<sub>Copyright © Team AI². All rights reserved. 허락 없이 복제·수정·배포·사용할 수 없습니다(<a href="LICENSE">LICENSE</a>).</sub>
+<br><br>
 <b>Team AI²</b>
 <br>
 <sub>강원대학교 삼척캠퍼스 해커톤 팀 AI²가 만들었습니다</sub>
