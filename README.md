@@ -22,6 +22,7 @@
 ![Tiếng Việt](https://img.shields.io/badge/Tiếng_Việt-011D48?style=flat-square)
 ![中文](https://img.shields.io/badge/中文-011D48?style=flat-square)
 ![O'zbekcha](https://img.shields.io/badge/O'zbekcha-011D48?style=flat-square)
+![日本語](https://img.shields.io/badge/日本語-011D48?style=flat-square)
 
 </div>
 
@@ -100,8 +101,8 @@ Unimate는 이런 캠퍼스 생활을 **내 언어 하나로** 할 수 있게 �
 - AI가 이용규칙에 어긋난다고 보면 그 글을 가립니다. 제한 기간에는 글·댓글·쪽지를 쓸 수 없습니다.
 - AI 검수가 실패하면 제재하지 않습니다.
 
-### 🌐 다섯 언어
-화면 문구는 한국어·영어·베트남어·중국어·우즈베크어 다섯 언어로 모두 준비되어 있습니다. 가입할 때 국적을 고르면 그 나라 언어가 자동으로 골라지고, 원하면 언어를 따로 고를 수 있습니다.
+### 🌐 여섯 언어
+화면 문구는 한국어·영어·베트남어·중국어·우즈베크어·일본어 여섯 언어로 모두 준비되어 있습니다. 데모 글·댓글·강의평과 이용규칙도 여섯 언어 번역을 미리 넣어 두어 AI를 부르지 않습니다. 가입할 때 국적을 고르면 그 나라 언어가 자동으로 골라지고, 원하면 언어를 따로 고를 수 있습니다.
 
 <br>
 
