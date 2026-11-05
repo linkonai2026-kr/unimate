@@ -110,7 +110,13 @@ export function Sheet({ close, closeLabel = 'Close', children }: { close: string
 /** 화면 맨 아래에 붙는 주요 버튼 자리(하단 탭 위) */
 export function BottomCTA({ children }: { children: ReactNode }) {
   // 위쪽 흐림 띠는 손가락을 가로채지 않게(그 아래 글·버튼이 눌리도록)
-  return <div className="pointer-events-none fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-gradient-to-t from-bg via-bg to-bg/0 px-4 pb-3 pt-6"><div className="pointer-events-auto">{children}</div></div>
+  // 앞의 빈 칸은 버튼 높이만큼 화면 끝을 늘려, 맨 아래 내용이 이 버튼 뒤에 숨지 않고 스크롤로 버튼 위까지 올라오게 한다
+  return (
+    <>
+      <div className="h-24" aria-hidden />
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-gradient-to-t from-bg via-bg to-bg/0 px-4 pb-3 pt-6"><div className="pointer-events-auto">{children}</div></div>
+    </>
+  )
 }
 
 /** 내 경고·이용 제한 상태 안내(홈·내 정보·글쓰기, 제한 중이면 댓글·쪽지 입력칸 자리). 상태가 없으면 아무것도 그리지 않는다 */

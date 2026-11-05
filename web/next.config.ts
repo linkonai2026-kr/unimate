@@ -1,4 +1,4 @@
-// Next.js 설정: 이미지 원본 사용, 서버 액션 본문 한도, exFAT 볼륨용 캐시 끄기, Tailwind 로더, 보안 헤더
+// Next.js 설정: 이미지 원본 사용, 서버 액션 본문 한도, exFAT 볼륨용 캐시 끄기, Tailwind 로더, 보안 헤더, 옛 주소(/reviews) 넘기기
 import type { NextConfig } from 'next'
 
 const securityHeaders = [
@@ -26,6 +26,14 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
+  },
+  // 강의평가 화면은 /lectures. 주소창에 /reviews·/review를 쳐도 같은 화면으로 보낸다
+  async redirects() {
+    return [
+      { source: '/reviews', destination: '/lectures', permanent: false },
+      { source: '/reviews/:name', destination: '/lectures/:name', permanent: false },
+      { source: '/review', destination: '/lectures', permanent: false },
+    ]
   },
 }
 

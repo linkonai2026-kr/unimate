@@ -20,7 +20,7 @@ const TABS: { id: VisitTab; path: string; key: UiKey; Icon: typeof House }[] = [
 export default function VisitShell({ lang, active, query = {}, children }: { lang: Lang; active: VisitTab; query?: Record<string, string>; children: ReactNode }) {
   const here = (TABS.find(x => x.id === active) ?? TABS[0]).path
   return (
-    <div lang={lang} className="mx-auto min-h-dvh max-w-[480px] bg-bg-soft pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <div lang={lang} className="mx-auto min-h-dvh max-w-[480px] bg-bg-soft pb-[calc(8rem+env(safe-area-inset-bottom))]">
       {/* 높이 56px: 지도 화면이 상단 56px·하단 64px를 빼고 높이를 잡는다 */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 bg-bg/95 px-2 backdrop-blur min-[400px]:gap-2 min-[400px]:px-3">
         {/* 좁은 화면(360px 안팎)에서도 한 줄에 들어가도록 로고를 줄이고 눌려 찌그러지지 않게 한다 */}

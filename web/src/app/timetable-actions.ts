@@ -1,8 +1,8 @@
 'use server'
 // 시간표 서버 액션: 수업 담기·빼기(겹침 검사), 직접 일정, 색, 시간표 만들기·이름·기본·삭제, 캡처 저장, 학점계산기 저장
 import { randomUUID } from 'node:crypto'
-import { refresh } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { refresh, revalidatePath } from 'next/cache'
+import { RedirectType, redirect } from 'next/navigation'
 import { z } from 'zod'
 import { PALETTE } from '@/components/TimetableGrid'
 import { requireUser } from '@/lib/auth/session'
@@ -28,6 +28,15 @@ const back = (tableId: string) => `/timetable?t=${encodeURIComponent(tableId)}`
 /** 돌아갈 주소는 시간표 화면 안으로만(바깥 주소로 보내는 열린 리디렉션 방지) */
 const safeReturn = (to: unknown, tableId: string) => (typeof to === 'string' && /^\/timetable(?:[/?]|$)/.test(to) ? to : back(tableId))
 
+/**
+ * 시간표를 바꾼 뒤 부른다. 브라우저에 남은 시간표·홈 화면을 버려서, 상단 '뒤로'로 돌아가도 새 시간표가 바로 보이게 한다.
+ * 수업 찾기의 담기·빼기는 같은 화면으로 돌아오므로 방문 기록을 덮어써서(replace) '뒤로' 한 번에 시간표로 간다
+ */
+function changed() {
+  revalidatePath('/timetable')
+  revalidatePath('/')
+}
+
 /** 내 시간표만 고칠 수 있다. 남의 것이거나 없으면 시간표 화면으로 */
 async function ownTable(id: unknown) {
   const me = await requireUser()
@@ -51,7 +60,8 @@ export async function addFromCatalog(tableId: string, code: string, returnTo: st
     ...mine.map(strip),
     ...slots.map(s => ({ name: c.name, place: c.place, day: s.day as NewCourse['day'], start: s.start, end: s.end, code: c.code, credit: c.credit, prof: c.prof })),
   ])
-  redirect(safeReturn(returnTo, t.id))
+  changed()
+  redirect(safeReturn(returnTo, t.id), RedirectType.replace)
 }
 
 /** 과목 키(강좌 코드 또는 직접 일정 id)에 해당하는 칸을 모두 빼고, 그 과목의 색 설정도 지운다 */
@@ -64,7 +74,8 @@ export async function removeItem(tableId: string, key: string, returnTo: string)
     await store.replaceTableCourses(t.id, left.map(strip))
     if (Object.hasOwn(t.colors, key)) await store.updateTable(t.id, { colors: Object.fromEntries(Object.entries(t.colors).filter(([k]) => k !== key)) })
   }
-  redirect(safeReturn(returnTo, t.id))
+  changed()
+  redirect(safeReturn(returnTo, t.id), RedirectType.replace)
 }
 
 export async function setColor(tableId: string, key: string, n: number) {
@@ -89,6 +100,7 @@ export async function addCustom(tableId: string, f: FormData): Promise<{ error: 
   if (clash(mine, [course])) return { error: 'clash' }
   if (mine.length >= MAX_SLOTS) return { error: 'invalid' }
   await store.replaceTableCourses(t.id, [...mine.map(strip), course])
+  changed()
   redirect(back(t.id))
 }
 
@@ -100,6 +112,7 @@ export async function createTable(sem: string, f: FormData) {
   if (tables.length >= MAX_TABLES) redirect(`/timetable?sem=${encodeURIComponent(sem)}&sheet=tables`)
   const name = text(f, 'name', 20) || `시간표 ${tables.length + 1}`
   const t = await store.createTable(me.id, sem, name)
+  changed()
   redirect(back(t.id))
 }
 
@@ -107,12 +120,14 @@ export async function renameTable(tableId: string, f: FormData) {
   const t = await ownTable(tableId)
   const name = text(f, 'name', 20)
   if (name && name !== t.name) await getStore().updateTable(t.id, { name })
+  changed()
   redirect(back(t.id))
 }
 
 export async function makePrimary(tableId: string) {
   const t = await ownTable(tableId)
   if (!t.primary) await getStore().setPrimary(t.id)
+  changed()
   redirect(back(t.id))
 }
 
@@ -120,6 +135,7 @@ export async function makePrimary(tableId: string) {
 export async function removeTable(tableId: string) {
   const t = await ownTable(tableId)
   await getStore().deleteTable(t.id)
+  changed()
   redirect(`/timetable?sem=${encodeURIComponent(t.sem)}`)
 }
 
@@ -150,6 +166,7 @@ export async function saveCourses(tableId: string, list: { name: string; place: 
       ?? known.find(k => k.code === mine.find(m => m.name === c.name && m.place === c.place)?.code)
     return { ...c, code: hit?.code, credit: hit?.credit, prof: hit?.prof }
   }))
+  changed()
   redirect(back(t.id))
 }
 

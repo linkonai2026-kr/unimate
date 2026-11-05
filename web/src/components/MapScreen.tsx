@@ -106,6 +106,9 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   const hd = useHeading()
   const [canHeading, setCanHeading] = useState(false)
   useEffect(() => { const timer = setTimeout(() => setCanHeading(touchDevice()), 0); return () => clearTimeout(timer) }, [])
+  // 휴대폰이면 지도에 들어오자마자 방향 센서를 켠다(아이폰은 이미 허락했으면 바로, 아니면 화면 첫 터치 때)
+  const autoHeading = hd.auto
+  useEffect(() => (touchDevice() ? autoHeading() : undefined), [autoHeading])
   const startHeading = hd.start
   const wantHeading = useCallback(() => { if (touchDevice()) void startHeading() }, [startHeading])
 
@@ -159,6 +162,8 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   const [watchOn, setWatchOn] = useState(false)
   const [locError, setLocError] = useState<'denied' | 'https' | null>(null)
   const [recenter, setRecenter] = useState(0)
+  /** 사용자가 "내 위치" 버튼을 눌렀는지(저절로 켠 위치 감시가 거절됐을 때는 안내 문구를 띄우지 않는다) */
+  const userAsked = useRef(false)
 
   // 실시간 GPS: 미리보기·안내 중에 내 위치를 계속 따라간다(데모 모드가 아닐 때)
   const live = (mode === 'preview' || mode === 'nav') && !demo && !!start && start.reason !== 'denied'
@@ -171,9 +176,13 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
     return () => navigator.geolocation.clearWatch(id)
   }, [live, takeFix])
 
-  // 둘러보기에서도 내 위치를 실시간으로: 이미 허용돼 있으면 바로, 아니면 "내 위치" 버튼을 눌렀을 때 켠다
+  // 둘러보기에서도 내 위치를 실시간으로: 휴대폰이거나 이미 허용돼 있으면 바로, 아니면 "내 위치" 버튼을 눌렀을 때 켠다
   useEffect(() => {
     let alive = true
+    if (touchDevice() && window.isSecureContext && navigator.geolocation) {
+      const timer = setTimeout(() => { if (alive) setWatchOn(true) }, 0)
+      return () => { alive = false; clearTimeout(timer) }
+    }
     try {
       // 일부 브라우저는 geolocation 조회를 지원하지 않아 바로 예외를 낸다
       navigator.permissions?.query({ name: 'geolocation' as PermissionName }).then(s => { if (alive && s.state === 'granted') setWatchOn(true) }, noop)
@@ -188,12 +197,14 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       p => {
         setLocError(null); setGps(takeFix(p))
       },
-      e => { if (e.code === e.PERMISSION_DENIED) { setLocError(window.isSecureContext ? 'denied' : 'https'); setWatchOn(false) } },
+      // 화면에 들어올 때 저절로 켠 것이 거절되면 조용히 끄고, "내 위치" 버튼을 눌렀을 때만 허용 방법을 알려 준다
+      e => { if (e.code === e.PERMISSION_DENIED) { if (userAsked.current) setLocError(window.isSecureContext ? 'denied' : 'https'); setWatchOn(false) } },
       { enableHighAccuracy: true, maximumAge: 0 },
     )
     return () => navigator.geolocation.clearWatch(id)
   }, [watchOn, live, takeFix])
   function locate() {
+    userAsked.current = true
     if (!window.isSecureContext || !navigator.geolocation) { setLocError(window.isSecureContext ? 'denied' : 'https'); return }
     setWatchOn(true)
     setRecenter(n => n + 1)
@@ -253,7 +264,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
 
   // 높이: 상단 56px·하단 탭 64px·아이폰 홈 바(safe-area)를 뺀 나머지. isolate로 Leaflet 층(z-1000)이 상단 바·탭 위로 새지 않게 하고, 틀의 아래 여백(pb)은 지도에선 없앤다
   return (
-    <div className="relative isolate -mb-[calc(6rem+env(safe-area-inset-bottom))] h-[calc(100dvh-56px-64px-env(safe-area-inset-bottom))] overflow-hidden">
+    <div className="relative isolate -mb-[calc(8rem+env(safe-area-inset-bottom))] h-[calc(100dvh-56px-64px-env(safe-area-inset-bottom))] overflow-hidden">
       {(() => {
         const view = {
           center, pins, selected, route: route?.coords, follow: mode === 'nav', recenter, heading: hd.heading,
