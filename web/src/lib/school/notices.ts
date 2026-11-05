@@ -46,8 +46,20 @@ export function postedToday(date: string, now: Date | number = Date.now()): bool
 // AI가 주는 "11/17 18:00" 형식과 기간("11/10~11/17")도 읽도록 마감 전용 해석기를 쓴다
 export const dDay = (deadline: string, now: Date | number = Date.now()): string | null => dDayOf(deadline, now)
 
+/**
+ * 목록 표의 칸 위치를 머리글로 찾는다. 학사공지는 "제목 | 작성자 | 등록일시 | 조회수", 일반공지는 작성자 칸이 없어
+ * "제목 | 등록일시 | 조회수"라서, 제목 바로 뒤를 부서로 읽으면 일반공지에서 부서 자리에 날짜·조회수가 들어갔다
+ */
+function columnsOf($: cheerio.CheerioAPI): { dept: number; date: number } | null {
+  const heads = $('thead th').map((_, th) => clean($(th).text())).get()
+  const date = heads.findIndex(h => /등록일|작성일|날짜/.test(h))
+  if (date < 0) return null
+  return { dept: heads.findIndex(h => /작성자|부서|담당/.test(h)), date }
+}
+
 export function parseNoticeList(html: string, board: NoticeBoard): Notice[] {
   const $ = cheerio.load(html)
+  const cols = columnsOf($)
   const seen = new Set<string>()
   const out: Notice[] = []
   $('tr').each((_, tr) => {
@@ -58,10 +70,13 @@ export function parseNoticeList(html: string, board: NoticeBoard): Notice[] {
     const title = clean(a.text())
     if (!title) return
     const tds = row.children('td')
+    const at = (i: number) => (i < 0 ? '' : clean(tds.eq(i).text()))
+    // 머리글이 있으면 그 위치로, 없으면(옛 형식) 제목 뒤 첫 칸 부서·둘째 칸 날짜
     const titleIdx = tds.index(a.closest('td'))
-    const cell = (k: number) => (titleIdx < 0 ? '' : clean(tds.eq(titleIdx + k).text()))
+    const dept = cols ? at(cols.dept) : titleIdx < 0 ? '' : at(titleIdx + 1)
+    const date = cols ? at(cols.date) : titleIdx < 0 ? '' : at(titleIdx + 2)
     seen.add(id)
-    out.push({ id, board, title, dept: cell(1), date: cell(2), url: detailUrl(board, id) })
+    out.push({ id, board, title, dept, date, url: detailUrl(board, id) })
   })
   return out
 }

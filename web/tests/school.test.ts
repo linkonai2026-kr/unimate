@@ -17,6 +17,18 @@ describe('공지 파서', () => {
   it('일반공지도 1건 이상', () => {
     expect(parseNoticeList(fx('notice-general-list'), 'general').length).toBeGreaterThan(0)
   })
+  it('일반공지는 작성자 칸이 없다: 부서는 비우고 날짜 칸에 조회수가 들어가지 않는다', () => {
+    const list = parseNoticeList(fx('notice-general-list'), 'general')
+    for (const n of list) {
+      expect(n.date).toMatch(/^\d{4}\.\d{2}\.\d{2}/)
+      expect(n.dept).toBe('')
+    }
+    expect(list[0].date).toBe('2026.10.19')
+  })
+  it('머리글이 없는 옛 형식 표는 제목 뒤 칸 순서로 읽는다', () => {
+    const html = '<table><tr><td><span aria-label="삼척">삼척</span></td><td><a class="detail-button" data-sn="7">제목</a></td><td>학생과</td><td>2026.11.01</td></tr></table>'
+    expect(parseNoticeList(html, 'academic')[0]).toMatchObject({ dept: '학생과', date: '2026.11.01' })
+  })
   it('상세 본문은 태그 없는 텍스트, 이미지 공지면 이미지 설명과 첨부 파일 이름을 담는다', () => {
     const body = parseNoticeBody(fx('notice-academic-detail'))
     expect(body).not.toContain('<')
