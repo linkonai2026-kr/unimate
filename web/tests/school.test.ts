@@ -141,62 +141,109 @@ describe('식단 끼니', () => {
   })
 })
 
-describe('공지 카드·식단 화면 데이터(service)', () => {
-  afterEach(() => { vi.unstubAllGlobals(); vi.doUnmock('server-only'); vi.resetModules(); delete (globalThis as { __uniSchoolMemo?: unknown }).__uniSchoolMemo; delete (globalThis as { __uniLastMenu?: unknown }).__uniLastMenu })
-  it('사이트가 죽으면 스냅샷 카드만, 상세 페이지는 기다리지 않는다', async () => {
-    vi.doMock('server-only', () => ({}))
-    const fetchMock = vi.fn().mockRejectedValue(new Error('down'))
+describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)', () => {
+  const G = globalThis as Record<string, unknown>
+  const resetGlobals = () => { for (const k of ['__uniSchoolMemo', '__uniLastMenu', '__uniMenuMemo', '__uniSchoolCache', '__uniPrebuiltRead', '__uniPrebuiltBusy']) delete G[k] }
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); vi.doUnmock('server-only'); vi.doUnmock('@/lib/ai'); vi.resetModules(); resetGlobals() })
+  const html = (body: string) => new Response(body, { headers: { 'content-type': 'text/html; charset=UTF-8' } })
+  const schoolSite = () => {
+    const list = fx('notice-academic-list'), detail = fx('notice-academic-detail'), menu = fx('menu-samcheok')
+    const fetchMock = vi.fn(async (url: string) => html(url.includes('wkmenu') ? menu : url.includes('list.do') ? list : detail))
     vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+  /** AI 대역: 몇 번 불렸는지 센다 */
+  const fakeAi = () => {
+    const summarizeNotice = vi.fn(async (title: string, _b: string, lang: string) => ({ bullets: [`${lang}:${title}`], deadline: '11/17 18:00', apply: null }))
+    const translateList = vi.fn(async (items: string[], lang: string) => items.map(x => `${lang}:${x}`))
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    vi.doMock('@/lib/ai', () => ({ summarizeNotice, translateList }))
+    return { summarizeNotice, translateList }
+  }
+
+  it('사이트가 죽고 저장본도 없으면 스냅샷 원문 카드', async () => {
+    vi.doMock('server-only', () => ({}))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')))
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { noticeCards } = await import('@/lib/school/service')
     const r = await noticeCards('academic', 'en', 3)
     expect(r.source).toBe('snapshot')
     expect(r.items).toHaveLength(3)
     expect(r.items[0]).toMatchObject({ titleTr: r.items[0].title, bullets: [], excerpt: '' })
-    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
-  it('상세를 못 받은 결과는 캐시하지 않아 다음 요청에서 다시 받는다', async () => {
+  it('공지는 하루 한 번 다섯 언어로 미리 만들고, 화면은 저장본만 읽는다(요청 때 AI 호출 없음)', async () => {
     vi.doMock('server-only', () => ({}))
-    const list = fx('notice-academic-list'), detail = fx('notice-academic-detail')
-    let detailOk = false
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-      if (url.includes('list.do')) return new Response(list, { headers: { 'content-type': 'text/html; charset=UTF-8' } })
-      if (!detailOk) throw new Error('detail down')
-      return new Response(detail, { headers: { 'content-type': 'text/html; charset=UTF-8' } })
-    }))
+    schoolSite()
+    const ai = fakeAi()
+    const { buildNotices, NOTICE_LIMIT } = await import('@/lib/school/prebuilt')
     const { noticeCards } = await import('@/lib/school/service')
-    expect((await noticeCards('academic', 'ko', 1)).items[0].files).toEqual([])
-    detailOk = true
-    expect((await noticeCards('academic', 'ko', 1)).items[0].files.length).toBeGreaterThan(0)
+    const snaps = await buildNotices('academic')
+    const n = snaps.ko.items.length
+    expect(n).toBeGreaterThan(0)
+    expect(n).toBeLessThanOrEqual(NOTICE_LIMIT)
+    expect(ai.summarizeNotice).toHaveBeenCalledTimes(n * 5)
+    expect(ai.translateList).toHaveBeenCalledTimes(4) // 한국어 빼고 언어마다 제목 한 번
+    const before = ai.summarizeNotice.mock.calls.length
+    const r = await noticeCards('academic', 'vi', 3)
+    expect(r.items[0]).toMatchObject({ titleTr: `vi:${r.items[0].title}`, bullets: [`vi:${r.items[0].title}`], deadline: '11/17 18:00' })
+    expect(r.items[0].files.length).toBeGreaterThan(0)
+    expect(ai.summarizeNotice).toHaveBeenCalledTimes(before)
   })
-  it('식단은 매번 새로 받고(캐시 없음), 동시에 온 요청은 하나로 합친다', async () => {
+  it('다시 만들 때 이미 요약한 공지는 AI를 다시 부르지 않는다', async () => {
     vi.doMock('server-only', () => ({}))
-    const html = fx('menu-samcheok')
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => new Response(html, { headers: { 'content-type': 'text/html; charset=UTF-8' } }))
-    vi.stubGlobal('fetch', fetchMock)
+    schoolSite()
+    const ai = fakeAi()
+    const { buildNotices } = await import('@/lib/school/prebuilt')
+    await buildNotices('academic')
+    const calls = ai.summarizeNotice.mock.calls.length
+    const next = await buildNotices('academic', undefined, Date.now() + 86_400_000)
+    expect(ai.summarizeNotice).toHaveBeenCalledTimes(calls)
+    expect(next.en.items[0].bullets[0]).toMatch(/^en:/)
+  })
+  it('학식: 식단은 사이트에서 받고(2분 공유), 메뉴 이름 번역은 주 1회 만든 사전에서 찾기만 한다', async () => {
+    vi.doMock('server-only', () => ({}))
+    const fetchMock = schoolSite()
+    const ai = fakeAi()
+    const { buildMenu } = await import('@/lib/school/prebuilt')
     const { menuView } = await import('@/lib/school/service')
-    const [a, b] = await Promise.all([menuView('en'), menuView('ko')])
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(a.source).toBe('live')
-    expect(a.week?.tr['덮밥류']).toBe('덮밥류') // 키 없음 → 원문
-    expect(b.week?.days[0]).toBe('10.19(월)')
-    await menuView('en')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' })
+    expect(await buildMenu()).toBe(true)
+    expect(ai.translateList).toHaveBeenCalledTimes(4)
+    const fetches = fetchMock.mock.calls.length
+    const [en, ko] = await Promise.all([menuView('en'), menuView('ko')])
+    expect(en.week?.tr['덮밥류']).toBe('en:덮밥류')
+    expect(ko.week?.tr['덮밥류']).toBe('덮밥류')
+    expect(ko.week?.days[0]).toBe('10.19(월)')
+    await menuView('vi')
+    expect(fetchMock.mock.calls.length - fetches).toBe(1) // 세 화면이 한 번 받은 식단을 같이 쓴다
+    expect(ai.translateList).toHaveBeenCalledTimes(4) // 화면을 열어도 번역 호출 없음
+    expect(await buildMenu()).toBe(true)
+    expect(ai.translateList).toHaveBeenCalledTimes(4) // 사전에 있는 이름은 다시 번역하지 않는다
+  })
+  it('사전이 없으면 메뉴 이름은 원문 그대로 보여 준다', async () => {
+    vi.doMock('server-only', () => ({}))
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => (url.includes('wkmenu') ? html(fx('menu-samcheok')) : Promise.reject(new Error('x')))))
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { menuView } = await import('@/lib/school/service')
+    const r = await menuView('en')
+    expect(r.source).toBe('live')
+    expect(r.week?.tr['덮밥류']).toBe('덮밥류')
   })
   it('식단을 못 받으면 옛 정보 없이 error', async () => {
     vi.doMock('server-only', () => ({}))
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')))
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { menuView } = await import('@/lib/school/service')
     expect(await menuView('en')).toEqual({ week: null, source: 'error' })
   })
   it('사이트가 응답하지 않으면 같은 주에 받아 둔 식단을 받은 시각과 함께, 다른 주면 error', async () => {
     vi.doMock('server-only', () => ({}))
-    const html = fx('menu-samcheok')
+    const menu = fx('menu-samcheok')
     let up = true
     vi.stubGlobal('fetch', vi.fn(async () => {
       if (!up) throw new Error('down')
-      return new Response(html, { headers: { 'content-type': 'text/html; charset=UTF-8' } })
+      return html(menu)
     }))
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { menuView } = await import('@/lib/school/service')
     const wed = Date.UTC(2026, 10, 4, 3) // 11/4(수) 12:00 한국
     expect((await menuView('ko', wed)).source).toBe('live')
@@ -225,25 +272,25 @@ describe('한국 날짜(서버가 UTC여도)', () => {
     expect(addDays(kstDay(new Date('2026-12-31T03:00:00Z')), 1).iso).toBe('2027-01-01')
     expect(msToKstMidnight(Date.parse('2026-11-05T14:59:00Z'))).toBe(60_000)
   })
-  it('날짜가 바뀌면 공지 목록 캐시 키도 바뀐다(자정에 새로 받는다)', async () => {
-    vi.useFakeTimers()
+  it('날짜가 바뀌면 어제 저장본을 바로 보여 주고 뒤에서 오늘 것을 다시 만든다', async () => {
+    vi.doMock('server-only', () => ({}))
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(fx(String(url).includes('list.do') ? 'notice-academic-list' : 'notice-academic-detail'), { headers: { 'content-type': 'text/html' } })))
     try {
-      vi.doMock('server-only', () => ({}))
-      const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () => new Response(fx('notice-academic-list'), { headers: { 'content-type': 'text/html' } }))
-      vi.stubGlobal('fetch', fetchMock)
-      const { noticeCards } = await import('@/lib/school/service')
-      const lists = () => fetchMock.mock.calls.filter(c => String(c[0]).includes('list.do')).length
-      vi.setSystemTime(new Date('2026-11-05T14:50:00Z')) // 한국 23:50
-      await noticeCards('academic', 'ko', 1)
-      await noticeCards('academic', 'ko', 1)
-      expect(lists()).toBe(1)
-      vi.setSystemTime(new Date('2026-11-05T15:01:00Z')) // 한국 다음 날 00:01(TTL 10분 안이어도)
-      await noticeCards('academic', 'ko', 1)
-      expect(lists()).toBe(2)
+      const { createMemoryCacheStore } = await import('@/lib/school/cache-store')
+      const { buildNotices, readNotices, noticeKey } = await import('@/lib/school/prebuilt')
+      const store = createMemoryCacheStore()
+      const night = Date.parse('2026-11-05T14:50:00Z') // 한국 23:50
+      await buildNotices('academic', store, night)
+      expect((await readNotices('academic', 'ko', 1, night, store)).status).toBe('prebuilt')
+      const next = Date.parse('2026-11-05T15:01:00Z') // 한국 다음 날 00:01
+      const r = await readNotices('academic', 'ko', 1, next, store)
+      expect(r.status).toBe('stale')
+      expect(r.items).toHaveLength(1)
+      // 뒤에서 다시 만들었다(만든 시각이 바뀜)
+      await vi.waitFor(async () => expect((await store.get<{ builtAt: number }>(noticeKey('academic', 'ko')))?.builtAt).not.toBe(night))
     } finally {
-      vi.useRealTimers()
       vi.unstubAllGlobals(); vi.doUnmock('server-only'); vi.resetModules()
-      delete (globalThis as { __uniSchoolMemo?: unknown }).__uniSchoolMemo; delete (globalThis as { __uniLastMenu?: unknown }).__uniLastMenu
+      for (const k of ['__uniSchoolMemo', '__uniLastMenu', '__uniMenuMemo', '__uniSchoolCache', '__uniPrebuiltRead', '__uniPrebuiltBusy']) delete (globalThis as Record<string, unknown>)[k]
     }
   })
 })

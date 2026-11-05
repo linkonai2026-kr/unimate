@@ -36,8 +36,8 @@ export interface StoredCard extends Notice {
   apply: Apply | null
 }
 export interface NoticeSnap { day: string; builtAt: number; source: 'live' | 'snapshot'; missing: number; items: StoredCard[] }
-export type MenuView = MenuWeek & { tr: Record<string, string> }
-export interface MenuSnap { weekKey: string; builtAt: number; week: MenuView }
+/** 메뉴 이름 번역 사전(원문 → 번역). weekKey: 마지막으로 만든 주 */
+export interface MenuDict { weekKey: string; builtAt: number; tr: Record<string, string> }
 
 export const noticeKey = (board: NoticeBoard, lang: Lang) => `notices-${board}-${lang}`
 export const menuKey = (lang: Lang) => `menu-${lang}`
@@ -112,21 +112,26 @@ export async function buildNotices(board: NoticeBoard, store: CacheStore = getCa
   return snaps
 }
 
-/** 이번 주 식단을 다섯 언어로 만든다. 이미 번역한 메뉴 이름(지난 저장본)은 다시 번역하지 않는다 */
+/** 식단에 나오는 이름(코너·메뉴) */
+export const menuNames = (week: MenuWeek) => [...new Set(week.corners.flatMap(c => [c.name, ...c.meals.flatMap(m => m.byDay.flat())]))]
+
+/**
+ * 메뉴 이름 번역 사전을 만든다(한 주에 한 번). 식단 자체는 화면이 늘 학교 사이트에서 새로 받고, 이름 번역만 이 사전에서 찾는다.
+ * 사전은 쌓아 간다: 이미 번역한 이름은 다시 번역하지 않고 새 이름만 AI를 부른다
+ */
 export async function buildMenu(store: CacheStore = getCacheStore(), now = Date.now()): Promise<boolean> {
   const r = await getMenu(undefined, now)
   if (!r.week) return false
-  const week = r.week
-  const names = [...new Set(week.corners.flatMap(c => [c.name, ...c.meals.flatMap(m => m.byDay.flat())]))]
+  const names = menuNames(r.week)
   const wk = weekKey(now)
-  await Promise.all(CODES.map(async l => {
-    const prev = await store.get<MenuSnap>(menuKey(l)).catch(() => null)
-    const known = prev?.week.tr ?? {}
-    const need = l === 'ko' ? [] : names.filter(n => !(n in known) || known[n] === n)
+  await Promise.all(CODES.filter(l => l !== 'ko').map(async l => {
+    const prev = await store.get<MenuDict>(menuKey(l)).catch(() => null)
+    const known = prev?.tr ?? {}
+    // 번역이 원문 그대로인 것(지난번 실패)도 다시 시도
+    const need = names.filter(n => !Object.hasOwn(known, n) || known[n] === n)
     const out = need.length ? await translateList(need, l) : []
-    const fresh = Object.fromEntries(need.map((n, i) => [n, out[i] || n]))
-    const tr = Object.fromEntries(names.map(n => [n, l === 'ko' ? n : (fresh[n] ?? known[n] ?? n)]))
-    await store.put(menuKey(l), { weekKey: wk, builtAt: now, week: { ...week, tr } } satisfies MenuSnap)
+    const tr = { ...known, ...Object.fromEntries(need.map((n, i) => [n, out[i] || n])) }
+    await store.put(menuKey(l), { weekKey: wk, builtAt: now, tr } satisfies MenuDict)
   }))
   return true
 }
@@ -180,25 +185,29 @@ const view = (c: StoredCard, now: number): NoticeCardView => ({ ...c, isToday: p
  * 공지 목록(저장본). 오늘 것이 아니거나 요약이 빠진 채 30분이 지났으면 뒤에서 다시 만든다.
  * 저장본이 아예 없으면(처음 배포) AI 없이 학교 사이트 목록만 원문으로 보여 준다
  */
-export async function readNotices(board: NoticeBoard, lang: Lang, limit: number, now = Date.now(), store: CacheStore = getCacheStore()): Promise<{ items: NoticeCardView[]; source: 'live' | 'snapshot' }> {
+/** status: prebuilt(오늘 저장본), stale(지난 저장본을 보여 주며 다시 만드는 중), live(저장본이 없어 원문 목록) */
+export async function readNotices(board: NoticeBoard, lang: Lang, limit: number, now = Date.now(), store: CacheStore = getCacheStore()): Promise<{ items: NoticeCardView[]; source: 'live' | 'snapshot'; status: 'prebuilt' | 'stale' | 'live' }> {
   const snap = await readSnap<NoticeSnap>(store, noticeKey(board, lang))
-  const stale = !snap || snap.day !== kstDay(now).iso || (snap.missing > 0 && now - snap.builtAt > RETRY_MS)
-  if (stale) rebuildLater(board === 'academic' ? 'notices-academic' : 'notices-general', store)
-  if (snap) return { items: snap.items.slice(0, limit).map(c => view(c, now)), source: snap.source }
+  const old = !snap || snap.day !== kstDay(now).iso
+  if (old || (snap.missing > 0 && now - snap.builtAt > RETRY_MS)) rebuildLater(board === 'academic' ? 'notices-academic' : 'notices-general', store)
+  if (snap) return { items: snap.items.slice(0, limit).map(c => view(c, now)), source: snap.source, status: old ? 'stale' : 'prebuilt' }
   const { items, source } = await getNotices(board, limit)
-  return { items: items.map(n => view({ ...n, titleTr: n.title, excerpt: '', images: 0, files: [], bullets: [], deadline: null, apply: null }, now)), source }
+  return { items: items.map(n => view({ ...n, titleTr: n.title, excerpt: '', images: 0, files: [], bullets: [], deadline: null, apply: null }, now)), source, status: 'live' }
 }
 
 /**
- * 이번 주 식단(저장본). 이번 주 저장본이 없으면 뒤에서 만들고, 그동안은 학교 사이트 식단을 번역 없이 보여 준다.
- * 지난주 저장본은 보여 주지 않는다
+ * 지금 받은 식단 이름들의 번역(사전에서 찾기만 한다, 요청 때 AI 호출 없음). 사전에 없는 이름은 원문 그대로.
+ * 사전이 이번 주 것이 아니거나, 사전에 없는 새 이름이 있는데 사전을 만든 지 1시간이 지났으면 뒤에서 새 이름만 번역한다
+ * prebuilt: 사전에서 모두 찾음, partial: 일부 원문, none: 사전 없음
  */
-export async function readMenu(lang: Lang, now = Date.now(), store: CacheStore = getCacheStore()): Promise<{ week: MenuView; source: 'live' } | { week: null; source: 'error' }> {
-  const snap = await readSnap<MenuSnap>(store, menuKey(lang))
-  if (snap && snap.weekKey === weekKey(now)) return { week: snap.week, source: 'live' }
-  rebuildLater('menu', store)
-  const r = await getMenu(undefined, now).catch(() => ({ week: null }))
-  return r.week ? { week: { ...r.week, tr: {} }, source: 'live' } : { week: null, source: 'error' }
+export async function menuTranslations(lang: Lang, names: string[], now = Date.now(), store: CacheStore = getCacheStore()): Promise<{ tr: Record<string, string>; status: 'prebuilt' | 'partial' | 'none' }> {
+  if (lang === 'ko') return { tr: Object.fromEntries(names.map(n => [n, n])), status: 'prebuilt' }
+  const dict = await readSnap<MenuDict>(store, menuKey(lang))
+  const known = dict?.tr ?? {}
+  const missing = names.filter(n => !Object.hasOwn(known, n))
+  if (!dict || dict.weekKey !== weekKey(now) || (missing.length > 0 && now - dict.builtAt > 60 * 60_000)) rebuildLater('menu', store)
+  const tr = Object.fromEntries(names.map(n => [n, Object.hasOwn(known, n) ? known[n] : n]))
+  return { tr, status: !dict ? 'none' : missing.length ? 'partial' : 'prebuilt' }
 }
 
 /** 테스트용: 인스턴스 읽기 캐시 비우기 */
