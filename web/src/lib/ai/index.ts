@@ -15,7 +15,7 @@ export interface Apply { how: 'online' | 'visit' | 'email' | 'other'; where: str
 export interface Summary { bullets: string[]; deadline: string | null; apply?: Apply | null }
 type ImageInput = { data: string; mediaType: 'image/png' | 'image/jpeg' | 'image/webp' }
 
-const TRANSLATE_MS = 25_000, SUMMARY_MS = 12_000, LIST_MS = 8_000, TIMETABLE_MS = 12_000, MODERATE_MS = 15_000
+const TRANSLATE_MS = 25_000, SUMMARY_MS = 20_000, LIST_MS = 20_000, TIMETABLE_MS = 12_000, MODERATE_MS = 15_000
 
 /** 시간이 지나면 요청 자체를 끊는다(응답만 버리고 호출은 계속 도는 일이 없게) */
 async function abortAfter<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {

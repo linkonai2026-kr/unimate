@@ -6,6 +6,7 @@ import { saveGrades } from '@/app/timetable-actions'
 import { BottomCTA, btn } from '@/components/ui'
 import { t, type Lang } from '@/lib/i18n'
 import { GRADES, MAX_ROWS, MAX_SEMS, gpa, type GradeRow, type GradeSemester } from '@/lib/timetable/grades'
+import { gradeSemLabel } from '@/lib/timetable/sem'
 
 const SEM_NAMES = ['1학년 1학기', '1학년 2학기', '2학년 1학기', '2학년 2학기', '3학년 1학기', '3학년 2학기', '4학년 1학기', '4학년 2학기']
 const CREDITS = [1, 2, 3, 4]
@@ -60,12 +61,12 @@ export default function GradeEditor({ lang, initial }: { lang: Lang; initial: Gr
       </section>
 
       <nav className="flex gap-1.5 overflow-x-auto px-1 py-1">
-        {sems.map((s, i) => <button key={i} type="button" onClick={() => setCur(i)} aria-pressed={s === sem} className={`press shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg text-ink'}`}>{s.name}</button>)}
+        {sems.map((s, i) => <button key={i} type="button" onClick={() => setCur(i)} aria-pressed={s === sem} className={`press shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg text-ink'}`}>{gradeSemLabel(s.name, lang)}</button>)}
         {sems.length < Math.min(SEM_NAMES.length, MAX_SEMS) && <button type="button" onClick={addSemester} className="press flex shrink-0 items-center gap-1 rounded-full bg-bg px-4 py-2 text-[14px] font-semibold text-teal"><Plus size={14} weight="bold" />{t(lang, 'addSemester')}</button>}
       </nav>
 
       <section className="rise card space-y-2 p-4">
-        <p className="px-1 text-[15px] text-muted">{sem.name} · {t(lang, 'avgGrade')} <b className="text-ink">{here.avg.toFixed(2)}</b> · {t(lang, 'creditsN', { n: String(here.credits) })}</p>
+        <p className="px-1 text-[15px] text-muted">{gradeSemLabel(sem.name, lang)} · {t(lang, 'avgGrade')} <b className="text-ink">{here.avg.toFixed(2)}</b> · {t(lang, 'creditsN', { n: String(here.credits) })}</p>
         <ul className="space-y-2">
           {sem.rows.map((r, i) => (
             <li key={i} className="space-y-2 rounded-2xl border border-line/70 p-2">

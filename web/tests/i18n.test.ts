@@ -57,3 +57,14 @@ describe('nationName', () => {
     expect(nationName('XX', 'ko')).toBe('기타')
   })
 })
+
+describe('저장된 한국어 기본 이름의 화면 표시', () => {
+  it('학기·학년 학기·자동 시간표 이름은 화면 언어로, 사용자가 지은 이름은 그대로', async () => {
+    const { semLabel, gradeSemLabel, tableLabel } = await import('@/lib/timetable/sem')
+    expect(semLabel('2026년 2학기', 'en')).toBe('Semester 2, 2026')
+    expect(semLabel('2026년 2학기', 'ko')).toBe('2026년 2학기')
+    expect(gradeSemLabel('1학년 2학기', 'uz')).toBe('1-kurs 2-semestr')
+    expect(tableLabel('시간표 3', 'vi')).toBe('Thời khóa biểu 3')
+    expect(tableLabel('내 시간표', 'en')).toBe('내 시간표')
+  })
+})

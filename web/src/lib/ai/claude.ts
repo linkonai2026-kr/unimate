@@ -13,7 +13,11 @@ const MODEL = 'claude-haiku-5-5'
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const CODES = LANGS.map(l => l.code) as [Lang, ...Lang[]]
 const LANG_NAMES = 'ko (Korean), en (English), vi (Vietnamese), zh (Simplified Chinese), uz (Uzbek, Latin script)'
-const langName = (lang: Lang) => LANG_NAMES.split(', ').find(n => n.startsWith(lang)) ?? lang
+// 이름 안에 쉼표가 있어(uz) 목록 문자열을 쪼개지 않고 언어별로 따로 둔다
+const LANG_NAME: Record<Lang, string> = {
+  ko: 'Korean', en: 'English', vi: 'Vietnamese', zh: 'Simplified Chinese', uz: "Uzbek (Latin script, o'zbekcha)",
+}
+export const langName = (lang: Lang) => LANG_NAME[lang] ?? lang
 
 // 재시도는 한 번만(호출 쪽 중단 신호가 전체 시간을 끊는다). 신호가 없을 때도 1분을 넘기지 않는다
 let client: Anthropic | undefined
@@ -142,7 +146,7 @@ export async function claudeSummary(title: string, body: string, lang: Lang, sig
 Title: ${title}
 
 Body:
-${body.slice(0, 6000)}`, 'medium', 1500, signal)
+${body.slice(0, 6000)}`, 'medium', 4000, signal)
   const bullets = out.bullets.map(b => b.trim()).filter(Boolean).slice(0, 3)
   if (bullets.length === 0) throw new Error('claude: empty summary')
   return { bullets, deadline: out.deadline?.trim() || null, apply: tidyApply(out.apply, body) }
@@ -177,12 +181,29 @@ export async function claudeTimetable(image: { data: string; mediaType: 'image/p
 /** 목록 번역 지시문(학식 메뉴, 커뮤니티 이용규칙처럼 짧은 한국어 문장 목록) */
 const LIST_SYSTEM = `Translate a list of short Korean texts for an international student at a Korean university (for example cafeteria menu items or community rules), into the language the request asks for. Keep each item's meaning and tone. If a dish has no direct equivalent, give a short descriptive name (for example "dakgalbi (spicy stir-fried chicken)"). Return the same number of items in the same order.`
 
-export async function claudeList(items: string[], lang: Lang, signal?: AbortSignal): Promise<string[]> {
+/** 한 번에 보내는 목록 크기. 학식 한 주치(수십 개)를 한 요청으로 보내면 제한 시간을 넘겨서 나눠 동시에 보낸다 */
+const LIST_CHUNK = 20
+
+async function claudeListChunk(items: string[], lang: Lang, signal?: AbortSignal): Promise<string[]> {
   const out = await ask(z.object({ items: z.array(z.string()) }), LIST_SYSTEM, `Into ${langName(lang)}:
-${JSON.stringify(items)}`, 'low', Math.min(8000, 1000 + items.join('').length * 6), signal)
+${JSON.stringify(items)}`, 'low', Math.min(6000, 800 + items.join('').length * 10), signal)
   if (out.items.length !== items.length) throw new Error('claude: list length mismatch')
   // 빈 칸은 원문으로 채운다
   return out.items.map((s, i) => s.trim() || items[i])
+}
+
+export async function claudeList(items: string[], lang: Lang, signal?: AbortSignal): Promise<string[]> {
+  const chunks: string[][] = []
+  for (let i = 0; i < items.length; i += LIST_CHUNK) chunks.push(items.slice(i, i + LIST_CHUNK))
+  // 한 덩어리가 실패하면 그 덩어리만 원문으로 남긴다
+  const done = await Promise.all(chunks.map(c => claudeListChunk(c, lang, signal).catch(e => {
+    if (signal?.aborted) throw e
+    console.warn('[ai] list chunk failed:', e instanceof Error ? e.message : e)
+    return c
+  })))
+  const out = done.flat()
+  if (out.every((s, i) => s === items[i])) throw new Error('claude: list not translated')
+  return out
 }
 
 /** 검수 지시문: 이용규칙(규칙 화면과 같은 원문) + 판단 기준. 글은 user 쪽에 JSON으로만 넣는다(지시로 읽지 않게) */

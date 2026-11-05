@@ -39,7 +39,9 @@
 }
 
 html, body { background: var(--bg-soft); color: var(--ink); }
-body { font-family: var(--font-sans); letter-spacing: -0.01em; word-break: keep-all; -webkit-tap-highlight-color: transparent; }
+/* 한국어는 어절 단위로 줄을 바꾸되(keep-all), 띄어쓰기 없는 중국어 문장·긴 주소는 칸을 넘지 않게 끊는다 */
+body { font-family: var(--font-sans); letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: break-word; -webkit-tap-highlight-color: transparent; }
+:lang(zh), :lang(ja) { word-break: normal; }
 .card { background: var(--bg); border-radius: 20px; }
 
 /* 키보드로 움직일 때만 초점 테두리(손가락으로 누를 땐 안 보이게). base 층이라 outline-none 같은 유틸리티가 이긴다 */

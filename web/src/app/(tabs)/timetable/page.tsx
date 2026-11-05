@@ -7,12 +7,12 @@ import TimetableGrid, { PALETTE, colorIndex } from '@/components/TimetableGrid'
 import { Flag, IconBox, Row, Section, Sheet, btn, field } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { dayName, t, type Lang } from '@/lib/i18n'
-import { buildingById } from '@/lib/map/buildings'
+import { buildingById, buildingName } from '@/lib/map/buildings'
 import { getStore } from '@/lib/store'
 import { isCustomCode } from '@/lib/timetable/catalog'
 import { gpa } from '@/lib/timetable/grades'
 import { parsePlace } from '@/lib/timetable/rooms'
-import { SEMS } from '@/lib/timetable/sem'
+import { SEMS, semLabel, tableLabel } from '@/lib/timetable/sem'
 import { fmtMin } from '@/lib/timetable/slots'
 import { groupItems, keyOf, resolveTable, type TableItem } from '@/lib/timetable/view'
 
@@ -46,9 +46,9 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
     <div className="space-y-3 pb-6 pt-1">
       <div className="rise flex items-center gap-2 px-4">
         <Link href={`${here}&sheet=tables`} scroll={false} className="press min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-teal">{sem}</p>
+          <p className="text-[13px] font-semibold text-teal">{semLabel(sem, lang)}</p>
           <p className="flex items-center gap-1.5 text-[20px] font-bold tracking-tight">
-            <span className="truncate">{table.name}</span>
+            <span className="truncate">{tableLabel(table.name, lang)}</span>
             {table.primary && primaryTag}
             <CaretDown size={16} weight="bold" className="shrink-0 text-muted" aria-hidden />
           </p>
@@ -104,7 +104,7 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
           <p className="mt-1 text-[15px] text-muted">{[open.prof || (open.code && !isCustomCode(open.code) ? t(lang, 'profTbd') : ''), credit(open) ? t(lang, 'creditsN', { n: String(credit(open)) }) : ''].filter(Boolean).join(' · ')}</p>
           <p className="mt-3 rounded-2xl bg-bg-soft px-4 py-3 text-[15px]">{slotsText(open, lang)}{open.place && <span className="mt-0.5 block text-muted">{open.place}</span>}</p>
           {room?.buildingId && building
-            ? <Link href={`/map?b=${encodeURIComponent(room.buildingId)}${room.roomNo ? `&room=${encodeURIComponent(room.roomNo)}` : ''}&go=1`} className={`${btn.mint} mt-4`}><NavigationArrow size={20} weight="fill" aria-hidden />{t(lang, 'route')} · {building.name}</Link>
+            ? <Link href={`/map?b=${encodeURIComponent(room.buildingId)}${room.roomNo ? `&room=${encodeURIComponent(room.roomNo)}` : ''}&go=1`} className={`${btn.mint} mt-4`}><NavigationArrow size={20} weight="fill" aria-hidden />{t(lang, 'route')} · {buildingName(building, lang)}</Link>
             : <span className={`${btn.soft} mt-4 text-muted`} aria-disabled="true">{t(lang, 'route')}</span>}
           <Link href={`/lectures/${encodeURIComponent(open.name)}`} className={`${btn.soft} mt-2`}><Star size={18} weight="fill" className="text-[#b07f00]" aria-hidden />{t(lang, 'reviews')}</Link>
           <p className="mt-5 text-[13px] font-semibold text-muted">{t(lang, 'color')}</p>
@@ -122,11 +122,11 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
         <Sheet close={here}>
           <p className="text-[13px] font-semibold text-muted">{t(lang, 'semester')}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {SEMS.map(s => <Link key={s} href={`/timetable?sem=${encodeURIComponent(s)}&sheet=tables`} scroll={false} aria-current={s === sem ? 'true' : undefined} className={`press rounded-full px-3.5 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg-soft'}`}>{s}</Link>)}
+            {SEMS.map(s => <Link key={s} href={`/timetable?sem=${encodeURIComponent(s)}&sheet=tables`} scroll={false} aria-current={s === sem ? 'true' : undefined} className={`press rounded-full px-3.5 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg-soft'}`}>{semLabel(s, lang)}</Link>)}
           </div>
           <ul className="mt-4 overflow-hidden rounded-2xl bg-bg-soft">
             {tables.map(x => (
-              <li key={x.id}><Link href={`/timetable?t=${encodeURIComponent(x.id)}`} aria-current={x.id === table.id ? 'true' : undefined} className={`tap flex min-h-14 items-center gap-2 px-4 ${x.id === table.id ? 'font-bold text-navy' : ''}`}>{x.name}{x.primary && primaryTag}</Link></li>
+              <li key={x.id}><Link href={`/timetable?t=${encodeURIComponent(x.id)}`} aria-current={x.id === table.id ? 'true' : undefined} className={`tap flex min-h-14 items-center gap-2 px-4 ${x.id === table.id ? 'font-bold text-navy' : ''}`}>{tableLabel(x.name, lang)}{x.primary && primaryTag}</Link></li>
             ))}
           </ul>
           <form action={createTable.bind(null, sem)} className="mt-3 flex gap-2">
@@ -139,7 +139,7 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
       {sheet === 'settings' && (
         <Sheet close={here}>
           <form action={renameTable.bind(null, table.id)} className="flex gap-2">
-            <input name="name" defaultValue={table.name} required maxLength={20} aria-label={t(lang, 'tableName')} className={`${field} h-12 flex-1`} />
+            <input name="name" defaultValue={tableLabel(table.name, lang)} required maxLength={20} aria-label={t(lang, 'tableName')} className={`${field} h-12 flex-1`} />
             <button className={`${btn.small} h-12 rounded-2xl px-4`}>{t(lang, 'rename')}</button>
           </form>
           <div className="mt-3 overflow-hidden rounded-2xl bg-bg-soft">
@@ -153,7 +153,7 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
 
       {sheet === 'list' && (
         <Sheet close={here}>
-          <p className="text-[19px] font-bold">{table.name} <span className="text-[15px] font-medium text-muted">{t(lang, 'creditsN', { n: String(credits) })}</span></p>
+          <p className="text-[19px] font-bold">{tableLabel(table.name, lang)} <span className="text-[15px] font-medium text-muted">{t(lang, 'creditsN', { n: String(credits) })}</span></p>
           <ul className="mt-3 max-h-[50vh] overflow-y-auto">
             {items.map(i => (
               <li key={i.key}><Row href={itemHref(i.key)} title={<span>{i.name} <span className="text-[13px] font-normal text-muted">{credit(i) ? t(lang, 'creditsN', { n: String(credit(i)) }) : ''}</span></span>} sub={[slotsText(i, lang), i.place].filter(Boolean).join(' · ')} /></li>
