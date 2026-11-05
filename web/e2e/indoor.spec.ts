@@ -21,7 +21,10 @@ test('건물에 다가가면 실내 지도 연결을 묻고, 1층 입구→엘�
   await expect(dialog.getByText('1층: 입구 → 엘리베이터')).toHaveAttribute('aria-current', 'step')
   await expect(dialog.getByText('엘리베이터로 3층')).toBeVisible()
   await expect(dialog.getByText('3층: 엘리베이터 → 311호')).toBeVisible()
-  await expect(dialog.getByTestId('indoor-path')).toBeVisible()
+  // 안내도 이미지가 아직 없어 약도로 그린다. 1층 길은 아래 입구에서 가운데 엘리베이터까지(곧은 세로선)
+  await expect(dialog.getByTestId('indoor-sketch')).toBeVisible()
+  await expect(dialog.getByTestId('indoor-path')).toHaveAttribute('points', '50,94 50,55')
+  if (process.env.INDOOR_SHOT) await page.screenshot({ path: process.env.INDOOR_SHOT + '-1.png' })
   await expect(dialog.getByLabel('엘리베이터')).toBeVisible()
 
   // 3층으로 바로 넘어가 엘리베이터 → 311호
@@ -29,6 +32,7 @@ test('건물에 다가가면 실내 지도 연결을 묻고, 1층 입구→엘�
   await expect(dialog.getByText('3층: 엘리베이터 → 311호')).toHaveAttribute('aria-current', 'step')
   await expect(dialog.getByRole('tab', { name: '3층' })).toHaveAttribute('aria-selected', 'true')
   await expect(dialog.getByText('311', { exact: true })).toBeVisible()
+  if (process.env.INDOOR_SHOT) await page.screenshot({ path: process.env.INDOOR_SHOT + '-3.png' })
   await dialog.getByRole('button', { name: '1층 다시 보기' }).click()
   await expect(dialog.getByText('1층: 입구 → 엘리베이터')).toHaveAttribute('aria-current', 'step')
 

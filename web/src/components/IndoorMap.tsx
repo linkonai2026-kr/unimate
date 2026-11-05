@@ -16,6 +16,8 @@ type Props = {
 }
 
 const pct = (p: IndoorPoint) => ({ left: `${p.x * 100}%`, top: `${p.y * 100}%` })
+/** SVG 선 좌표(0~100, 소수 둘째 자리까지) */
+const svgPoints = (path: IndoorPoint[]) => path.map(p => `${Math.round(p.x * 10000) / 100},${Math.round(p.y * 10000) / 100}`).join(' ')
 
 /** 단계 문구: 1층 입구 → 엘리베이터 / 엘리베이터로 N층 / N층 엘리베이터 → 호실 */
 function legText(lang: Lang, l: IndoorLeg, roomNo: string | null) {
@@ -109,8 +111,8 @@ export default function IndoorMap({ lang, plan, name, room, heading, headingStat
 
             {cur && (
               <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
-                <polyline data-testid="indoor-path" points={cur.path.map(p => `${p.x * 100},${p.y * 100}`).join(' ')} fill="none" stroke="var(--teal)" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-                <polyline points={cur.path.map(p => `${p.x * 100},${p.y * 100}`).join(' ')} fill="none" stroke="#fff" strokeWidth={1.5} strokeDasharray="2 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                <polyline data-testid="indoor-path" points={svgPoints(cur.path)} fill="none" stroke="var(--teal)" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                <polyline points={svgPoints(cur.path)} fill="none" stroke="#fff" strokeWidth={1.5} strokeDasharray="2 6" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
               </svg>
             )}
 
@@ -188,7 +190,7 @@ export default function IndoorMap({ lang, plan, name, room, heading, headingStat
           ) : (headingStatus === 'unsupported' || headingStatus === 'denied') && (
             <p className="text-[13px] text-muted">{t(lang, 'headingNoSensor')}</p>
           )}
-          {plan.source && <p className="ml-auto text-right text-[12px] text-[#8b93a1]">{t(lang, 'indoorSource', { src: plan.source })}</p>}
+          {plan.source && !sketch && <p className="ml-auto text-right text-[12px] text-[#8b93a1]">{t(lang, 'indoorSource', { src: plan.source })}</p>}
         </div>
       </div>
     </div>
