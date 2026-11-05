@@ -331,6 +331,8 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
                       <span className="min-w-0 flex-1">
                         <span className="block text-[15px] font-semibold">{f.name}{f.where && <span className="ml-1.5 text-[13px] font-medium text-muted">{f.where}</span>}</span>
                         {f.hours && <span className="block text-[13px] text-teal">{f.hours}</span>}
+                        {/* 학생이 아닌 사람도 쓸 수 있는 곳인지(방문객 모드·로그인 화면 공통) */}
+                        {f.open && <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${f.open.length > 12 ? 'bg-bg-soft text-muted' : 'bg-mint-soft text-mint-text'}`}>{f.open}</span>}
                       </span>
                       {f.tel && <a href={`tel:${f.tel}`} aria-label={`${f.name} ${f.tel}`} className="press flex h-9 shrink-0 items-center gap-1 rounded-xl bg-bg-soft px-2.5 text-[13px] font-semibold text-ink"><Phone size={15} weight="fill" className="text-teal" aria-hidden />{f.tel.replace(/^033-/, '')}</a>}
                     </li>

@@ -101,16 +101,21 @@ export const whereText = (lang: Lang, floor?: number | null, room?: string | nul
 
 export type FacilityView = { kind: FacilityKind; name: string; where: string; hours: string; tel: string; /** 외부인 이용 안내(없으면 빈 문자열) */ open: string }
 
-export function facilitiesFor(buildingId: string, lang: Lang): FacilityView[] {
-  const list = Object.hasOwn(FACILITIES, buildingId) ? FACILITIES[buildingId] : []
-  return list.map(f => ({
+/** 시설 하나를 보는 사람 언어로 */
+export function facilityView(f: Facility, lang: Lang): FacilityView {
+  return {
     kind: f.kind,
     name: f.name[lang],
     where: f.outdoor ? OUTDOOR[lang] : whereText(lang, f.floor, f.room),
     hours: (f.hours ?? []).map(h => `${DAYS[h.days][lang]} ${h.open}–${h.close}`).join(' · '),
     tel: f.tel ? `033-${f.tel}` : '',
     open: f.open ? OPEN[f.open][lang] : '',
-  }))
+  }
+}
+
+export function facilitiesFor(buildingId: string, lang: Lang): FacilityView[] {
+  const list = Object.hasOwn(FACILITIES, buildingId) ? FACILITIES[buildingId] : []
+  return list.map(f => facilityView(f, lang))
 }
 
 /** 모든 건물의 시설(지도 화면에 한 번에 내려 준다) */
