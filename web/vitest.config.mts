@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     exclude: ['**/._*', 'node_modules/**'],
+    // 테스트 안에서 처음 불러오는 모듈(Next 라우트 등)은 변환에 5초를 넘길 때가 있어 기본값보다 넉넉히
+    testTimeout: 20_000,
     // 테스트는 항상 대역(메모리 저장소·가짜 AI)으로 돈다. 셸에 남은 외부 키가 실서비스를 건드리지 않게 비운다
     env: {
       ANTHROPIC_API_KEY: '',

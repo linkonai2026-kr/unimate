@@ -130,7 +130,7 @@ describe('식단 끼니', () => {
 })
 
 describe('공지 카드·식단 화면 데이터(service)', () => {
-  afterEach(() => { vi.unstubAllGlobals(); vi.doUnmock('server-only'); vi.resetModules(); delete (globalThis as { __uniSchoolMemo?: unknown }).__uniSchoolMemo })
+  afterEach(() => { vi.unstubAllGlobals(); vi.doUnmock('server-only'); vi.resetModules(); delete (globalThis as { __uniSchoolMemo?: unknown }).__uniSchoolMemo; delete (globalThis as { __uniLastMenu?: unknown }).__uniLastMenu })
   it('사이트가 죽으면 스냅샷 카드만, 상세 페이지는 기다리지 않는다', async () => {
     vi.doMock('server-only', () => ({}))
     const fetchMock = vi.fn().mockRejectedValue(new Error('down'))
@@ -177,6 +177,26 @@ describe('공지 카드·식단 화면 데이터(service)', () => {
     const { menuView } = await import('@/lib/school/service')
     expect(await menuView('en')).toEqual({ week: null, source: 'error' })
   })
+  it('사이트가 응답하지 않으면 같은 주에 받아 둔 식단을 받은 시각과 함께, 다른 주면 error', async () => {
+    vi.doMock('server-only', () => ({}))
+    const html = fx('menu-samcheok')
+    let up = true
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      if (!up) throw new Error('down')
+      return new Response(html, { headers: { 'content-type': 'text/html; charset=UTF-8' } })
+    }))
+    const { menuView } = await import('@/lib/school/service')
+    const wed = Date.UTC(2026, 10, 4, 3) // 11/4(수) 12:00 한국
+    expect((await menuView('ko', wed)).source).toBe('live')
+    up = false
+    const fri = Date.UTC(2026, 10, 6, 3) // 같은 주 금요일
+    const cached = await menuView('ko', fri)
+    expect(cached).toMatchObject({ source: 'cached', at: wed })
+    expect(cached.week?.days[0]).toBe('10.19(월)')
+    // 토요일은 다음 주 식단을 보는 날이라 받아 둔 이번 주 식단을 쓰지 않는다
+    const sat = Date.UTC(2026, 10, 7, 3)
+    expect(await menuView('ko', sat)).toEqual({ week: null, source: 'error' })
+  })
 })
 
 describe('한국 날짜(서버가 UTC여도)', () => {
@@ -211,7 +231,7 @@ describe('한국 날짜(서버가 UTC여도)', () => {
     } finally {
       vi.useRealTimers()
       vi.unstubAllGlobals(); vi.doUnmock('server-only'); vi.resetModules()
-      delete (globalThis as { __uniSchoolMemo?: unknown }).__uniSchoolMemo
+      delete (globalThis as { __uniSchoolMemo?: unknown }).__uniSchoolMemo; delete (globalThis as { __uniLastMenu?: unknown }).__uniLastMenu
     }
   })
 })

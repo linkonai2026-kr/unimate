@@ -1,30 +1,41 @@
 // 이번 주 학식 목록(학생 화면·방문객 화면 공통). 늘 학교 사이트에서 새로 받고, 오늘(한국)을 강조, 운영하지 않는 끼니는 뺀다
-import { WarningCircle } from '@phosphor-icons/react/dist/ssr'
+import { ArrowSquareOut, WarningCircle } from '@phosphor-icons/react/dist/ssr'
 import { DayRefresh, RefreshButton } from '@/components/BottomNav'
 import { t, type Lang } from '@/lib/i18n'
 import { kstDay } from '@/lib/school/memo'
-import { mealLabel, servedOn, todayIndex } from '@/lib/school/menu'
+import { MENU_URL, mealLabel, servedOn, todayIndex } from '@/lib/school/menu'
 import { menuView } from '@/lib/school/service'
 
-/** 식단을 못 받았을 때: 옛 정보 대신 분명한 안내와 다시 시도 */
+/** 식단을 못 받았을 때: 옛 정보 대신 분명한 안내, 다시 시도, 학교 사이트 바로 가기 */
 export function MenuError({ lang }: { lang: Lang }) {
   return (
     <div role="alert" className="flex flex-col items-center gap-3 px-6 py-8 text-center">
       <WarningCircle size={36} weight="fill" className="text-danger" aria-hidden />
       <p className="text-[16px] font-bold">{t(lang, 'menuError')}</p>
       <RefreshButton label={t(lang, 'retry')} />
+      <a href={MENU_URL} target="_blank" rel="noopener noreferrer" className="press inline-flex items-center gap-1 text-[14px] font-semibold text-muted">
+        {t(lang, 'viewOriginalSite')}<ArrowSquareOut size={14} aria-hidden />
+      </a>
     </div>
   )
 }
 
+/** 받아 둔 식단을 보여 줄 때의 안내(한국 시각) */
+export function MenuCachedNote({ lang, at }: { lang: Lang; at: number }) {
+  const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(at)
+  return <p role="status" className="mx-3 rounded-2xl bg-danger/8 px-4 py-2.5 text-[13px] font-medium text-danger">{t(lang, 'menuCached', { time })}</p>
+}
+
 export default async function MenuList({ lang }: { lang: Lang }) {
-  const { week } = await menuView(lang)
+  const view = await menuView(lang)
+  const { week } = view
   const day = kstDay().iso
   if (!week) return <div className="pb-6 pt-1"><DayRefresh day={day} /><div className="rise card mx-3"><MenuError lang={lang} /></div></div>
   const today = todayIndex(week.days)
   return (
     <div className="space-y-3 pb-6 pt-1">
       <DayRefresh day={day} />
+      {view.source === 'cached' && <MenuCachedNote lang={lang} at={view.at} />}
       <p className="rise px-5 text-[15px] font-semibold text-muted">{week.restaurant}</p>
       {/* 주말이면 오늘 열이 없다(다음 주 식단을 보여 준다) */}
       {today < 0 && <p className="px-5 text-[14px] text-muted">{t(lang, 'noMenuToday')}</p>}

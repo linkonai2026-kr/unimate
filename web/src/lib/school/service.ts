@@ -4,7 +4,7 @@ import { summarizeNotice, translateList, type Apply, type Summary } from '../ai'
 import { has } from '../env'
 import type { Lang } from '../i18n'
 import { getMenu, menuTargetDay, type MenuWeek } from './menu'
-import { createMemo, kstDay } from './memo'
+import { addDays, createMemo, kstDay } from './memo'
 import { dDay, getNoticeHtml, getNotices, parseNoticeBody, parseNoticeDetail, postedToday, snapshotNotices, type Notice, type NoticeBoard, type NoticeDetail } from './notices'
 
 // ponytail: 프로세스 메모리 캐시(10분). 서버리스 인스턴스마다 따로 생기며, 많아지면 DB 캐시로 옮긴다
@@ -74,17 +74,38 @@ export async function noticeCards(board: NoticeBoard, lang: Lang, limit = 3): Pr
 }
 
 export type MenuView = MenuWeek & { tr: Record<string, string> }
+/** live: 방금 학교 사이트에서 받음, cached: 사이트가 응답하지 않아 같은 주에 마지막으로 받은 식단(at: 받은 시각) */
+export type MenuResultView = { week: MenuView; source: 'live' } | { week: MenuView; source: 'cached'; at: number } | { week: null; source: 'error' }
+
+/** 식단 주의 기준(학교 사이트는 일~토 한 주를 보여 준다): 그 주 일요일 날짜 */
+const weekKey = (now = Date.now()) => {
+  const day = menuTargetDay(now)
+  return addDays(day, -day.dow).iso
+}
+
+// 마지막으로 받은 식단(같은 주일 때만 쓴다: 지난주 식단은 보여 주지 않는다). 서버가 재시작하면 사라진다
+const lastMenu = globalThis as { __uniLastMenu?: { week: MenuWeek; weekKey: string; at: number } }
 
 /**
- * 메뉴 이름을 사용자 언어로 번역한 표(원문 → 번역). 식단은 저장본 없이 늘 학교 사이트에서 새로 받는다.
- * 같은 주를 동시에 여러 명이 열면 요청 하나를 같이 쓰고(keep=false라 저장은 하지 않는다), 번역만 내용 해시로 캐시한다
+ * 메뉴 이름을 사용자 언어로 번역한 표(원문 → 번역). 식단은 늘 학교 사이트에서 새로 받는다.
+ * 같은 주를 동시에 여러 명이 열면 요청 하나를 같이 쓰고(keep=false라 저장은 하지 않는다), 번역만 내용 해시로 캐시한다.
+ * 사이트가 응답하지 않으면 같은 주에 마지막으로 받은 식단을 받은 시각과 함께 보여 주고, 그것도 없으면 error
  */
-export async function menuView(lang: Lang): Promise<{ week: MenuView; source: 'live' } | { week: null; source: 'error' }> {
-  const r = await memo(`menu-fetch:${menuTargetDay().iso}`, () => getMenu(), () => false).catch(() => ({ week: null, source: 'error' as const }))
-  if (!r.week) return { week: null, source: 'error' }
-  const { week } = r
+export async function menuView(lang: Lang, now = Date.now()): Promise<MenuResultView> {
+  const r = await memo(`menu-fetch:${menuTargetDay(now).iso}`, () => getMenu(), () => false).catch(() => ({ week: null, source: 'error' as const }))
+  let week: MenuWeek
+  let at: number | null = null
+  if (r.week) {
+    week = r.week
+    lastMenu.__uniLastMenu = { week, weekKey: weekKey(now), at: now }
+  } else {
+    const saved = lastMenu.__uniLastMenu
+    if (!saved || saved.weekKey !== weekKey(now)) return { week: null, source: 'error' }
+    week = saved.week
+    at = saved.at
+  }
   const names = [...new Set(week.corners.flatMap(c => [c.name, ...c.meals.flatMap(m => m.byDay.flat())]))]
   const out = await translated('menu', names, lang)
   const tr = Object.fromEntries(names.map((n, k) => [n, out[k] || n]))
-  return { week: { ...week, tr }, source: 'live' }
+  return at == null ? { week: { ...week, tr }, source: 'live' } : { week: { ...week, tr }, source: 'cached', at }
 }

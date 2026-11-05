@@ -1,6 +1,6 @@
 // 홈의 학사공지·오늘의 학식 덩어리(학교 사이트 실제 정보, 한국 날짜 기준, 느린 요청은 Suspense 안에서)
 import { CalendarBlank } from '@phosphor-icons/react/dist/ssr'
-import { MenuError } from '@/components/school/MenuList'
+import { MenuCachedNote, MenuError } from '@/components/school/MenuList'
 import { Row, Section } from '@/components/ui'
 import { t, type Lang } from '@/lib/i18n'
 import { currentMeal, mealLabel, servedOn, todayIndex } from '@/lib/school/menu'
@@ -27,7 +27,8 @@ export async function NoticeCard({ lang }: { lang: Lang }) {
 }
 
 export async function MenuCard({ lang }: { lang: Lang }) {
-  const { week } = await menuView(lang)
+  const view = await menuView(lang)
+  const { week } = view
   const title = <span>{t(lang, 'todayMenu')} {week && <span className="text-[14px] font-medium text-muted">{week.restaurant.replace('삼척-', '')}</span>}</span>
   if (!week) return <Section title={title} more="/menu" moreLabel={t(lang, 'weekMenu')}><MenuError lang={lang} /></Section>
   // 오늘(한국) 열. 주말이면 없다
@@ -39,6 +40,7 @@ export async function MenuCard({ lang }: { lang: Lang }) {
   const shown = now.length ? now : meals.slice(0, 3)
   return (
     <Section title={title} more="/menu" moreLabel={t(lang, 'weekMenu')}>
+      {view.source === 'cached' && <div className="pt-2"><MenuCachedNote lang={lang} at={view.at} /></div>}
       {shown.length === 0 ? (
         <div className="flex items-center gap-2 px-5 pb-5 pt-2 text-[15px] text-muted"><CalendarBlank size={20} aria-hidden />{t(lang, 'noMenuToday')}</div>
       ) : (
