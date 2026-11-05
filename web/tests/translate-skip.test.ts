@@ -51,7 +51,7 @@ describe('번역 흐름에서 건너뛰기', () => {
     const post = await createPostWithTranslation(d, { board: 'free', authorId: 'u1', anonymous: true, title: '🎉🎉', body: 'ㅋㅋㅋ', lang: 'ko' })
     await runLater()
     expect(calls).toBe(0)
-    const view = toPostView((await d.store.getPost(post.id))!, { viewer: 'en', viewerId: 'u9', author: null })
+    const view = toPostView((await d.store.getPost(post.id))!, { viewer: 'en', viewerId: 'u9', author: null, comments: 0 })
     expect(view).toMatchObject({ title: '🎉🎉', body: 'ㅋㅋㅋ', translated: false, pending: false })
   })
 })
