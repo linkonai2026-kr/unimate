@@ -24,7 +24,7 @@ function OpenTask({ task, lang }: { task: DeadlineTask; lang: Lang }) {
           <span className={`mt-0.5 shrink-0 rounded-lg px-2 py-1 text-[12px] font-bold ${urgent ? 'bg-danger text-white' : 'bg-danger/10 text-danger'}`}>{dday ?? task.deadline}</span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-bold leading-snug">{task.title}</p>
+          <Link href={`/deadlines/${task.id}`} className="press block text-[16px] font-bold leading-snug">{task.title}</Link>
           <p className="mt-0.5 text-[13px] text-muted">
             {[task.deadline && `${t(lang, 'deadline')} ${task.deadline}`, a && t(lang, HOW_KEY[a.how]), a?.where].filter(Boolean).join(' · ')}
           </p>

@@ -10,8 +10,8 @@ import { kstDay } from '@/lib/school/memo'
 import { safeHttpUrl, type NoticeBoard } from '@/lib/school/notices'
 import { noticeCards } from '@/lib/school/service'
 
-/** mode: 학생 화면이면 "신청 준비해 줘"로 내 마감에 담을 수 있다. savedIds: 이미 담은 공지 번호 */
-export default async function NoticeList({ lang, board, boardHref, mode = 'visit', savedIds = [] }: { lang: Lang; board: NoticeBoard; boardHref: Record<NoticeBoard, string>; mode?: 'student' | 'visit'; savedIds?: string[] }) {
+/** mode: 학생 화면이면 "신청 준비해 줘"로 내 마감에 담을 수 있다. saved: 이미 담은 공지("게시판:번호" → 할 일 id) */
+export default async function NoticeList({ lang, board, boardHref, mode = 'visit', saved = {} }: { lang: Lang; board: NoticeBoard; boardHref: Record<NoticeBoard, string>; mode?: 'student' | 'visit'; saved?: Record<string, string> }) {
   const { items, source } = await noticeCards(board, lang, 8)
   return (
     <div className="space-y-3 pb-6 pt-1">
@@ -36,7 +36,7 @@ export default async function NoticeList({ lang, board, boardHref, mode = 'visit
               {n.bullets.length > 0
                 ? <ul className="mt-3 space-y-1 text-[15px]">{n.bullets.map((b, i) => <li key={i} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden />{b}</li>)}</ul>
                 : n.excerpt && <p lang="ko" className="mt-3 line-clamp-3 text-[15px] leading-relaxed text-ink/80">{n.excerpt}</p>}
-              <ApplyHelper n={n} lang={lang} mode={mode} saved={savedIds.includes(`${n.board}:${n.id}`)} />
+              <ApplyHelper n={n} lang={lang} mode={mode} taskId={saved[`${n.board}:${n.id}`] ?? null} />
               {(n.images > 0 || n.files.length > 0) && (
                 <div className="mt-3 space-y-1.5 rounded-2xl bg-bg-soft px-4 py-3 text-[13px] text-muted">
                   {n.images > 0 && <p className="flex items-center gap-1.5"><ImageSquare size={16} aria-hidden />{t(lang, 'imagesN', { n: n.images })}</p>}

@@ -26,7 +26,7 @@ const common = {
   vid: z.string().regex(/^[A-Za-z0-9]{4,16}$/).optional(),
 }
 
-export const ACTIONS = ['ics', 'route', 'apply_page', 'prepare', 'original'] as const
+export const ACTIONS = ['ics', 'route', 'apply_page', 'prepare', 'original', 'mail_draft', 'mail_open', 'mail_copy'] as const
 export const FAILS = ['notice_snapshot', 'notice_empty', 'menu_error', 'menu_cached'] as const
 
 /** 사진·주소의 쿼리를 지우고 200자로 자른 오류 문장(스택은 받지 않는다) */

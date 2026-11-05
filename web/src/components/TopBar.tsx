@@ -10,7 +10,7 @@ const TITLES: [RegExp, UiKey][] = [
   [/^\/calc/, 'gpaCalc'], [/^\/timetable\/add/, 'findCourses'], [/^\/timetable\/import/, 'uploadTimetable'], [/^\/timetable/, 'tab.timetable'],
   [/^\/friends/, 'friends'], [/^\/lectures/, 'reviews'], [/^\/(boards|board|post|write|search)(\/|$)/, 'tab.board'], [/^\/messages/, 'tab.messages'],
   [/^\/map/, 'tab.map'], [/^\/me\/edit/, 'editProfile'], [/^\/me\/password/, 'changePassword'], [/^\/me(\/|$)/, 'me'], [/^\/rules/, 'rules'],
-  [/^\/notices/, 'notices'], [/^\/menu/, 'weekMenu'],
+  [/^\/notices/, 'notices'], [/^\/menu/, 'weekMenu'], [/^\/deadlines\//, 'applyHelper'],
 ]
 const ROOTS = new Set(['/', '/timetable', '/boards', '/messages', '/map'])
 

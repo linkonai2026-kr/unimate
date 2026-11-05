@@ -13,7 +13,7 @@ const s1 = (v: number | null) => (v == null ? '—' : (v / 1000).toFixed(1))
 const pct = (v: number | null) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
 const one = (v: string | string[] | undefined) => (typeof v === 'string' ? v : undefined)
 
-const ACTION_LABEL: Record<(typeof ACTIONS)[number], string> = { ics: '캘린더 등록', route: '제출처 길찾기', apply_page: '신청 페이지', prepare: '내 마감에 담기', original: '원문 보기' }
+const ACTION_LABEL: Record<(typeof ACTIONS)[number], string> = { ics: '캘린더 등록', route: '제출처 길찾기', apply_page: '신청 페이지', prepare: '신청 준비(내 마감에 담기)', original: '원문 보기', mail_draft: '메일 초안 쓰기', mail_open: '메일 앱 열기', mail_copy: '메일 본문 복사' }
 const FAIL_LABEL: Record<string, string> = { notice_snapshot: '공지: 학교 사이트 대신 저장본', notice_empty: '공지: 빈 목록', menu_error: '식단: 오류 화면', menu_cached: '식단: 받아 둔 식단' }
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {

@@ -162,7 +162,7 @@ function install() {
         send({ kind: 'notice_open', board, id, ms: Math.round(activeMs(nv)), first: nv.opened.size === 0, vid: nv.vid })
         nv.opened.add(`${board}:${id}`)
       }
-      if (a && (a.target === '_blank' || /^https?:/.test(href))) flush()
+      if (a && (a.target === '_blank' || /^(https?|mailto):/.test(href))) flush()
     } catch { /* 무시 */ }
   }, { capture: true, passive: true })
   const err = (type: 'error' | 'rejection', message: string) => {
