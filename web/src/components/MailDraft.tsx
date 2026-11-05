@@ -1,14 +1,14 @@
 'use client'
 // 담당 부서 메일 초안: 이름·학과·학번을 확인하고 누르면 AI가 한국어 메일과 내 언어 번역을 쓴다.
 // 메일 앱은 제목·본문이 채워진 채로 열리고(mailto), 학생은 확인 뒤 보내기만 누르면 된다
-import { Check, Copy, EnvelopeSimple, PaperPlaneTilt, Sparkle } from '@phosphor-icons/react'
+import { CaretDown, Check, Copy, EnvelopeSimple, PaperPlaneTilt, Sparkle } from '@phosphor-icons/react'
 import { useActionState, useState } from 'react'
 import { draftMail, type MailState } from '@/app/deadline-actions'
 import { btn, field } from '@/components/ui'
 import { t, type Lang } from '@/lib/i18n'
 
 const label = 'block space-y-1.5 text-[13px] font-semibold text-muted'
-const chip = 'press inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl px-4 text-[15px] font-bold'
+const chip = 'press inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-center text-[15px] font-bold'
 
 export default function MailDraft({ taskId, lang, defaults, emails }: {
   taskId: string
@@ -34,10 +34,11 @@ export default function MailDraft({ taskId, lang, defaults, emails }: {
   return (
     <div className="space-y-4">
       <form action={action} className="space-y-3">
-        <div className="grid grid-cols-3 gap-2">
+        {/* 좁은 화면(360px)에서 세 칸을 한 줄에 두면 글자가 잘리니 이름·학번 두 칸, 학과는 한 줄 전체 */}
+        <div className="grid grid-cols-2 gap-2">
           <label className={label}>{t(lang, 'mailName')}<input name="name" defaultValue={v.name} maxLength={30} autoComplete="name" className={field} /></label>
-          <label className={label}>{t(lang, 'majorLabel')}<input name="major" defaultValue={v.major} maxLength={30} className={field} /></label>
           <label className={label}>{t(lang, 'mailStudentId')}<input name="studentId" defaultValue={v.studentId} maxLength={20} inputMode="numeric" className={field} /></label>
+          <label className={`${label} col-span-2`}>{t(lang, 'majorLabel')}<input name="major" defaultValue={v.major} maxLength={30} className={field} /></label>
         </div>
         {emails.length > 0 ? (
           <label className={label}>{t(lang, 'mailTo')}
@@ -62,7 +63,7 @@ export default function MailDraft({ taskId, lang, defaults, emails }: {
           </section>
           {lang !== 'ko' && (
             <details open className="rounded-2xl bg-mint-soft p-4">
-              <summary className="cursor-pointer text-[13px] font-bold text-mint-text">{t(lang, 'mailMine')}</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center justify-between text-[13px] font-bold text-mint-text">{t(lang, 'mailMine')}<CaretDown size={16} weight="bold" className="shrink-0" aria-hidden /></summary>
               <div lang={lang}>
                 <p className="mt-2 text-[15px] font-bold">{ok.draft.subjectTr}</p>
                 <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{ok.draft.bodyTr}</p>
@@ -70,7 +71,7 @@ export default function MailDraft({ taskId, lang, defaults, emails }: {
             </details>
           )}
           <p className="text-[13px] font-medium text-danger">{t(lang, 'mailCheck')}</p>
-          <div className="grid grid-cols-[1fr_auto] gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <a href={ok.mailto} data-track="mail_open" className={`${chip} bg-teal text-white`}><PaperPlaneTilt size={18} weight="fill" aria-hidden />{t(lang, 'mailOpen')}</a>
             <button type="button" onClick={copy} data-track="mail_copy" className={`${chip} bg-bg-soft text-ink`}>
               {copied ? <Check size={18} weight="bold" aria-hidden /> : <Copy size={18} aria-hidden />}{t(lang, copied ? 'mailCopied' : 'mailCopy')}

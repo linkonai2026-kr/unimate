@@ -18,7 +18,7 @@ export default function AuthShell({ lang, path, next, children, footer }: { lang
         {LANGS.map(l => (
           <Link key={l.code} href={authHref(path, l.code, next)} hrefLang={l.code} lang={l.code} replace
             aria-current={l.code === lang ? 'true' : undefined}
-            className={`press rounded-full px-3.5 py-2 text-[14px] font-semibold ${l.code === lang ? 'bg-navy text-white' : 'bg-bg-soft text-ink'}`}>
+            className={`press inline-flex min-h-11 items-center rounded-full px-3.5 text-[14px] font-semibold ${l.code === lang ? 'bg-navy text-white' : 'bg-bg-soft text-ink'}`}>
             {l.label}
           </Link>
         ))}

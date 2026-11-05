@@ -18,7 +18,7 @@ const FAIL_LABEL: Record<string, string> = { notice_snapshot: '공지: 학교 �
 
 function Section({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl bg-bg p-5 shadow-sm">
+    <section className="min-w-0 rounded-2xl bg-bg p-5 shadow-sm">
       <h2 className="text-[18px] font-bold">{title}</h2>
       {note && <p className="mt-1 text-[13px] text-muted">{note}</p>}
       <div className="mt-3 overflow-x-auto">{children}</div>
@@ -65,8 +65,8 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
           </div>
           <form className="flex flex-wrap items-end gap-2 text-[14px]">
             <input type="hidden" name="key" value={key} />
-            <label className="flex flex-col gap-1">시작<input type="date" name="from" defaultValue={from} className="rounded-lg border border-line bg-bg px-2 py-1.5" /></label>
-            <label className="flex flex-col gap-1">끝<input type="date" name="to" defaultValue={to} className="rounded-lg border border-line bg-bg px-2 py-1.5" /></label>
+            <label className="flex flex-col gap-1">시작<input type="date" name="from" defaultValue={from} className="rounded-lg border border-line bg-bg px-2 py-1.5 text-[16px]" /></label>
+            <label className="flex flex-col gap-1">끝<input type="date" name="to" defaultValue={to} className="rounded-lg border border-line bg-bg px-2 py-1.5 text-[16px]" /></label>
             <button className="rounded-lg bg-navy px-3 py-2 font-semibold text-white">보기</button>
           </form>
           <nav className="flex flex-wrap gap-2 text-[14px] font-semibold">
@@ -96,7 +96,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
           ]} />
         </Section>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Section title="퍼널(방문객)" note="세션 = 그 단계를 한 브라우저 수, 누적 = 앞 단계를 모두 거친 브라우저 수">
             <Table head={['단계', '세션', '누적', '']} rows={s.funnel.map(f => [
               f.label, f.sessions, f.nested,
@@ -108,7 +108,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
           </Section>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Section title="공지 도우미 버튼" note={`공지 카드를 누른 세션 ${s.notices.openSessions}개`}>
             <Table head={['버튼', '누른 횟수']} rows={ACTIONS.map(a => [ACTION_LABEL[a], s.notices.actions[a] ?? 0])} />
           </Section>
@@ -127,7 +127,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
           ])} />
         </Section>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Section title="오류·실패 화면" note="오류 = 브라우저 스크립트 오류, 실패 화면 = 학교 사이트가 안 돼 저장본·오류 안내를 보여 준 횟수">
             <Table head={['종류', '건수']} rows={[
               ...Object.entries(s.errors.byType).map(([k, n]) => [k === 'error' ? '스크립트 오류' : '처리 안 된 Promise 거부', n]),

@@ -120,7 +120,7 @@ export default async function Home() {
         {QUICK.map(({ href, key, tone, Icon }) => (
           <Link key={href} href={href} className="press flex flex-col items-center gap-2 rounded-2xl py-1 text-center">
             <IconBox tone={tone} size={48}><Icon size={26} weight="fill" /></IconBox>
-            <span className="text-[13px] font-medium text-ink">{t(lang, key)}</span>
+            <span className="px-0.5 text-center text-[13px] font-medium leading-tight text-ink">{t(lang, key)}</span>
           </Link>
         ))}
       </nav>
@@ -136,8 +136,8 @@ export default async function Home() {
             {popular.map(p => (
               <li key={p.id}>
                 <Link href={`/post/${p.id}`} className="tap block px-5 py-3">
-                  <div className="flex items-center gap-2 text-[13px] text-muted"><Avatar n={p.avatar} photo={p.photo} size={22} /><Flag code={p.nation} size={12} /><span className="font-semibold text-ink">{p.author}</span><span>{timeAgo(p.createdAt, lang)}</span></div>
-                  <p className="mt-2 text-[16px] font-bold">{p.title}</p>
+                  <div className="flex items-center gap-2 text-[13px] text-muted"><Avatar n={p.avatar} photo={p.photo} size={22} /><Flag code={p.nation} size={12} /><span className="min-w-0 truncate font-semibold text-ink">{p.author}</span><span className="shrink-0">{timeAgo(p.createdAt, lang)}</span></div>
+                  <p className="mt-2 line-clamp-2 text-[16px] font-bold">{p.title}</p>
                   <p className="mt-0.5 line-clamp-2 text-[14px] text-muted">{p.body}</p>
                   <p className="mt-2 flex gap-3 text-[13px] font-semibold"><span className="text-danger"><Heart /> {p.likes}</span><span className="text-teal"><Bubble /> {p.comments}</span></p>
                 </Link>
@@ -155,7 +155,7 @@ export default async function Home() {
               <Link href={`/board/${b.id}`} className="tap flex min-h-12 items-center gap-3 px-5 py-2">
                 <span className="w-[6.5rem] shrink-0 truncate text-[15px] font-semibold">{b.name}</span>
                 <span className="min-w-0 flex-1 truncate text-[14px] text-muted">{p ? pickText(p, 'title', p.title, lang).text : ''}</span>
-                {p && isNew(p.createdAt) && <span className="flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white">N</span>}
+                {p && isNew(p.createdAt) && <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white"><span aria-hidden>N</span><span className="sr-only">{timeAgo(p.createdAt, lang)}</span></span>}
               </Link>
             </li>
           ))}

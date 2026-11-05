@@ -85,12 +85,15 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
         <div className="mt-3 flex items-center gap-3">
           <Avatar n={p.avatar} photo={p.photo} size={40} />
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1.5 text-[15px] font-bold"><Flag code={p.nation} size={12} />{p.author}</p>
+            <p className="flex items-center gap-1.5 text-[15px] font-bold"><Flag code={p.nation} size={12} /><span className="truncate">{p.author}</span></p>
             <p className="text-[13px] text-[#8b93a1]">{timeAgo(p.createdAt, lang)}</p>
           </div>
-          {mine && <form action={removePost.bind(null, post.id)}><button className={btn.small}><Trash size={16} aria-hidden />{t(lang, 'delete')}</button></form>}
-          {!mine && !post.anonymous && author && <Link href={`/messages/${encodeURIComponent(author.handle)}`} className={btn.small}><PaperPlaneTilt size={16} aria-hidden />{t(lang, 'messages')}</Link>}
-          {!mine && <Link href={`${self}?report=post`} scroll={false} className={btn.small}><Siren size={16} aria-hidden />{t(lang, 'report')}</Link>}
+        </div>
+        {/* 작성자 줄에 버튼까지 두면 좁은 화면에서 이름이 밀리므로 버튼은 한 줄 아래에 나란히 */}
+        <div className="mt-3 flex gap-2">
+          {mine && <form action={removePost.bind(null, post.id)} className="flex flex-1"><button className={`${btn.small} flex-1`}><Trash size={16} aria-hidden />{t(lang, 'delete')}</button></form>}
+          {!mine && !post.anonymous && author && <Link href={`/messages/${encodeURIComponent(author.handle)}`} className={`${btn.small} flex-1`}><PaperPlaneTilt size={16} aria-hidden />{t(lang, 'messages')}</Link>}
+          {!mine && <Link href={`${self}?report=post`} scroll={false} className={`${btn.small} flex-1`}><Siren size={16} aria-hidden />{t(lang, 'report')}</Link>}
         </div>
         <h1 className="mt-5 text-[22px] font-bold leading-snug tracking-tight">{p.title}</h1>
         <div className="mt-3 text-[16px] leading-relaxed">
@@ -103,7 +106,7 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
               return (
                 <a key={img} href={src} target="_blank" rel="noopener noreferrer" className="block">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" loading="lazy" className="w-full rounded-2xl" />
+                  <img src={src} alt="" loading="lazy" className="max-h-[70dvh] w-full rounded-2xl bg-bg-soft object-cover" />
                 </a>
               )
             })}
@@ -142,9 +145,9 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
       </section>
 
       {suspended ? (
-        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg/95 pb-3 pt-2 backdrop-blur"><SanctionBanner lang={lang} status={sanctionStatus(me)} /></div>
+        <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-bg/95 pb-3 pt-2 backdrop-blur"><SanctionBanner lang={lang} status={sanctionStatus(me)} /></div>
       ) : (
-        <form action={submitComment.bind(null, post.id)} className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg/95 px-3 pb-3 pt-2 backdrop-blur">
+        <form action={submitComment.bind(null, post.id)} className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-bg/95 px-3 pb-3 pt-2 backdrop-blur">
           {replyTarget && (
             <p className="mb-1.5 flex items-center justify-between px-2 text-[13px] font-medium text-teal">
               <span className="flex min-w-0 items-center gap-1"><ArrowBendDownRight size={14} aria-hidden /><span className="truncate">{t(lang, 'replyingTo')}: {replyTarget.body.slice(0, 30)}</span></span>
@@ -154,9 +157,10 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
           <input type="hidden" name="parentId" value={replyTarget?.id ?? ''} />
           <div className="flex items-center gap-2 rounded-2xl bg-bg-soft py-1.5 pl-3 pr-1.5">
             {/* 비밀게시판은 항상 익명(체크를 풀 수 없음, 서버도 강제) */}
-            <label className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-teal"><input type="checkbox" name="anonymous" defaultChecked disabled={anonOnly} className="h-4 w-4 accent-[var(--teal)]" />{t(lang, 'anonymous')}</label>
-            <input name="body" required maxLength={2000} autoComplete="off" aria-label={t(lang, 'comment')} placeholder={t(lang, 'commentPlaceholder')} className="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-[#a4abb8]" />
-            <button aria-label={t(lang, 'submit')} className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy text-white"><PaperPlaneRight size={18} weight="fill" aria-hidden /></button>
+            <label className="flex min-h-10 shrink-0 items-center gap-1.5 px-1 text-[13px] font-semibold text-teal"><input type="checkbox" name="anonymous" defaultChecked disabled={anonOnly} className="h-5 w-5 accent-[var(--teal)]" />{t(lang, 'anonymous')}</label>
+            {/* 답글을 달 때는 바로 입력할 수 있게 초점을 준다 */}
+            <input name="body" required maxLength={2000} autoComplete="off" enterKeyHint="send" autoFocus={!!replyTarget} aria-label={t(lang, 'comment')} placeholder={t(lang, 'commentPlaceholder')} className="min-w-0 flex-1 bg-transparent py-2 text-[16px] outline-none placeholder:text-[#a4abb8]" />
+            <button aria-label={t(lang, 'submit')} className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-navy text-white"><PaperPlaneRight size={18} weight="fill" aria-hidden /></button>
           </div>
         </form>
       )}
@@ -175,7 +179,7 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
               ))}
             </fieldset>
             <textarea name="detail" maxLength={REPORT_DETAIL_MAX} rows={3} aria-label={t(lang, 'reportDetail')} placeholder={t(lang, 'reportDetail')}
-              className="w-full resize-none rounded-2xl bg-bg-soft p-4 text-[15px] leading-relaxed outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
+              className="w-full resize-none rounded-2xl bg-bg-soft p-4 text-[16px] leading-relaxed outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
             <button className={btn.primary}>{t(lang, 'reportSubmit')}</button>
           </form>
         </Sheet>
@@ -209,11 +213,12 @@ function CommentRow({ c, lang, postId, reply }: { c: CommentView; lang: Lang; po
     <div className="px-5 py-3">
       <div className="flex items-center gap-2">
         <Avatar n={c.avatar} photo={c.photo} size={28} />
-        <span className={`flex flex-1 items-center gap-1.5 text-[14px] font-bold ${c.isPostAuthor ? 'text-teal' : ''}`}><Flag code={c.nation} size={11} />{c.author}</span>
-        <span className="flex items-center gap-1">
-          {!reply && <Link href={`${self}?reply=${encodeURIComponent(c.id)}`} scroll={false} className="press rounded-lg px-2 py-1 text-[12px] font-medium text-muted">{t(lang, 'reply')}</Link>}
-          {!c.mine && <Link href={`${self}?report=${encodeURIComponent(c.id)}`} scroll={false} aria-label={`${t(lang, 'report')}: ${c.author}`} className="press rounded-lg px-2 py-1 text-[12px] font-medium text-muted">{t(lang, 'report')}</Link>}
-          <form action={like.bind(null, 'comment', c.id, !c.liked)}><button aria-label={t(lang, 'like')} aria-pressed={c.liked} className={`press flex items-center gap-0.5 rounded-lg px-2 py-1 text-[12px] font-semibold ${c.liked ? 'text-danger' : 'text-muted'}`}><HeartIcon size={14} weight={c.liked ? 'fill' : 'regular'} aria-hidden />{c.likes || ''}</button></form>
+        <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[14px] font-bold ${c.isPostAuthor ? 'text-teal' : ''}`}><Flag code={c.nation} size={11} /><span className="truncate">{c.author}</span></span>
+        {/* 손가락으로 누르기 쉽게 버튼은 36px 이상, 줄 높이는 -my-1로 유지 */}
+        <span className="-my-1 flex shrink-0 items-center gap-0.5">
+          {!reply && <Link href={`${self}?reply=${encodeURIComponent(c.id)}`} scroll={false} className={ACT}>{t(lang, 'reply')}</Link>}
+          {!c.mine && <Link href={`${self}?report=${encodeURIComponent(c.id)}`} scroll={false} aria-label={`${t(lang, 'report')}: ${c.author}`} className={ACT}>{t(lang, 'report')}</Link>}
+          <form action={like.bind(null, 'comment', c.id, !c.liked)}><button aria-label={t(lang, 'like')} aria-pressed={c.liked} className={`${ACT} gap-0.5 font-semibold ${c.liked ? 'text-danger' : ''}`}><HeartIcon size={14} weight={c.liked ? 'fill' : 'regular'} aria-hidden />{c.likes || ''}</button></form>
         </span>
       </div>
       <div className="mt-1.5 pl-9 text-[15px] leading-relaxed"><TrText text={c.body} original={c.originalBody} translated={c.translated} pending={c.pending} from={c.from} viewer={lang} /></div>

@@ -24,11 +24,11 @@ export function LoginForm({ lang, demo, next }: { lang: Lang; demo: { handle: st
         {next && <input type="hidden" name="next" value={next} />}
         <label className={label}>{t(lang, 'handle')}
           <input name="handle" autoComplete="username" placeholder={t(lang, 'handle')} className={field} required maxLength={40} defaultValue={state?.values?.handle}
-            aria-invalid={!!err} aria-describedby={described} {...handleInput} />
+            enterKeyHint="next" aria-invalid={!!err} aria-describedby={described} {...handleInput} />
         </label>
         <label className={label}>{t(lang, 'password')}
           <input name="password" type="password" autoComplete="current-password" placeholder={t(lang, 'password')} className={field} required
-            aria-invalid={!!err} aria-describedby={described} />
+            enterKeyHint="go" aria-invalid={!!err} aria-describedby={described} />
         </label>
         {err && <p id={errId} role="alert" className="text-[14px] font-medium text-danger">{err}</p>}
         <button disabled={pending} aria-busy={pending} className={btn.primary}>{t(lang, 'login')}</button>
@@ -80,16 +80,16 @@ export function SignupForm({ lang, nations, next }: { lang: Lang; nations: [stri
       {next && <input type="hidden" name="next" value={next} />}
       <label className={label}>{t(lang, 'handle')}
         <input name="handle" autoComplete="username" placeholder={t(lang, 'handle')} className={field} required minLength={3} maxLength={20}
-          pattern="[A-Za-z0-9]{3,20}" aria-describedby={`${id}-handle`} defaultValue={v?.handle} {...handleInput} />
+          pattern="[A-Za-z0-9]{3,20}" enterKeyHint="next" aria-describedby={`${id}-handle`} defaultValue={v?.handle} {...handleInput} />
       </label>
       <span id={`${id}-handle`} className={`${hint} -mt-2`}>{t(lang, 'handleRule')}</span>
       <label className={label}>{t(lang, 'password')}
         <input name="password" type="password" autoComplete="new-password" placeholder={t(lang, 'password')} className={field} required minLength={8} maxLength={128}
-          aria-describedby={`${id}-password`} />
+          enterKeyHint="next" aria-describedby={`${id}-password`} />
       </label>
       <span id={`${id}-password`} className={`${hint} -mt-2`}>{t(lang, 'passwordRule')}</span>
       <label className={label}>{t(lang, 'nickname')}
-        <input name="nickname" autoComplete="nickname" placeholder={t(lang, 'nickname')} className={field} required maxLength={20} defaultValue={v?.nickname} />
+        <input name="nickname" autoComplete="nickname" placeholder={t(lang, 'nickname')} className={field} required maxLength={20} defaultValue={v?.nickname} enterKeyHint="done" />
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className={label}>{t(lang, 'nationality')}

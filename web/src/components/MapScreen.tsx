@@ -251,8 +251,9 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   const fromLabel = start && start.reason !== 'denied' ? t(lang, 'myLocation') : t(lang, 'mainGate')
   const destFacilities = dest ? facilities[dest.id] ?? [] : []
 
+  // 높이: 상단 56px·하단 탭 64px·아이폰 홈 바(safe-area)를 뺀 나머지. isolate로 Leaflet 층(z-1000)이 상단 바·탭 위로 새지 않게 하고, 틀의 아래 여백(pb)은 지도에선 없앤다
   return (
-    <div className="relative h-[calc(100dvh-56px-64px)] overflow-hidden">
+    <div className="relative isolate -mb-[calc(6rem+env(safe-area-inset-bottom))] h-[calc(100dvh-56px-64px-env(safe-area-inset-bottom))] overflow-hidden">
       {(() => {
         const view = {
           center, pins, selected, route: route?.coords, follow: mode === 'nav', recenter, heading: hd.heading,
@@ -273,7 +274,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       })()}
 
       {mode === 'browse' && (
-        <div className="absolute right-3 top-3 z-[500] flex items-center gap-2">
+        <div className="absolute right-3 top-3 z-[1100] flex items-center gap-2">
           {gps && <p role="status" aria-label={t(lang, 'myLocation')} className="rounded-full bg-bg/95 px-3 py-1.5 text-[13px] font-semibold text-ink shadow-[0_4px_12px_-4px_rgba(1,29,72,.3)]"><span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-[#3b82f6]" aria-hidden />{t(lang, 'myLocation')} ±{Math.round(gps.acc)}m</p>}
           {canHeading && hd.status !== 'on' && (
             <button type="button" onClick={() => void hd.start()} aria-label={t(lang, 'headingOn')} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg text-[#3b82f6] shadow-[0_4px_12px_-4px_rgba(1,29,72,.35)]"><Compass size={22} weight="bold" aria-hidden /></button>
@@ -282,14 +283,14 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
         </div>
       )}
       {mode === 'browse' && canHeading && (hd.status === 'unsupported' || hd.status === 'denied') && !locError && (
-        <p role="status" className="absolute left-3 right-3 top-16 z-[500] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, 'headingNoSensor')}</p>
+        <p role="status" className="absolute left-3 right-3 top-16 z-[1100] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, 'headingNoSensor')}</p>
       )}
       {mode === 'browse' && locError && (
-        <p role="alert" className="absolute left-3 right-3 top-16 z-[500] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, locError === 'https' ? 'locationNeedsHttps' : 'locationDenied')}</p>
+        <p role="alert" className="absolute left-3 right-3 top-16 z-[1100] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, locError === 'https' ? 'locationNeedsHttps' : 'locationDenied')}</p>
       )}
 
       {mode === 'preview' && route && (
-        <div className="absolute left-14 right-3 top-3 z-[500] space-y-2 rounded-[20px] bg-bg p-4 text-[15px] shadow-[0_8px_24px_-8px_rgba(1,29,72,.25)]">
+        <div className="absolute left-14 right-3 top-3 z-[1100] space-y-2 rounded-[20px] bg-bg p-4 text-[15px] shadow-[0_8px_24px_-8px_rgba(1,29,72,.25)]">
           <p className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-full bg-navy" aria-hidden />{fromLabel}</p>
           <p className="flex items-center gap-2.5 font-bold"><span className="h-2.5 w-2.5 rounded-full bg-danger" aria-hidden />{destLabel}</p>
         </div>
@@ -298,7 +299,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       {mode === 'nav' && next && state && (() => {
         const { Icon } = turnInfo(next.turn)
         return (
-          <div aria-live="polite" className="absolute left-14 right-3 top-3 z-[500] flex items-center gap-4 rounded-[20px] bg-navy p-4 text-white shadow-[0_8px_24px_-8px_rgba(1,29,72,.5)]">
+          <div aria-live="polite" className="absolute left-14 right-3 top-3 z-[1100] flex items-center gap-4 rounded-[20px] bg-navy p-4 text-white shadow-[0_8px_24px_-8px_rgba(1,29,72,.5)]">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/12" aria-hidden><Icon size={32} weight="bold" /></span>
             <div className="min-w-0">
               <p className="text-[28px] font-bold leading-tight tracking-tight">{t(lang, 'inMeters', { m: state.toNext })}</p>
@@ -315,12 +316,12 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       })()}
 
       {mode === 'browse' && dest && (
-        <div className="rise absolute inset-x-0 bottom-0 z-[500] flex max-h-[62%] flex-col rounded-t-[28px] bg-bg px-5 pb-6 pt-3 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div className="rise absolute inset-x-0 bottom-0 z-[1100] flex max-h-[62%] flex-col rounded-t-[28px] bg-bg px-5 pb-6 pt-3 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <div className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-line" aria-hidden />
           <p className="text-[22px] font-bold tracking-tight">{destLabel}</p>
           {/* 건물 안 시설: 이름·위치, 운영시간, 누르면 전화 */}
           {destFacilities.length > 0 && (
-            <div className="-mx-5 mt-3 min-h-0 overflow-y-auto px-5">
+            <div className="-mx-5 mt-3 min-h-0 overflow-y-auto overscroll-contain px-5">
               <p className="text-[13px] font-semibold text-muted">{t(lang, 'insideBuilding')}</p>
               <ul className="mt-1 divide-y divide-line/70">
                 {destFacilities.map((f, i) => {
@@ -334,7 +335,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
                         {/* 학생이 아닌 사람도 쓸 수 있는 곳인지(방문객 모드·로그인 화면 공통) */}
                         {f.open && <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${f.open.length > 12 ? 'bg-bg-soft text-muted' : 'bg-mint-soft text-mint-text'}`}>{f.open}</span>}
                       </span>
-                      {f.tel && <a href={`tel:${f.tel}`} aria-label={`${f.name} ${f.tel}`} className="press flex h-9 shrink-0 items-center gap-1 rounded-xl bg-bg-soft px-2.5 text-[13px] font-semibold text-ink"><Phone size={15} weight="fill" className="text-teal" aria-hidden />{f.tel.replace(/^033-/, '')}</a>}
+                      {f.tel && <a href={`tel:${f.tel}`} aria-label={`${f.name} ${f.tel}`} className="press flex h-11 shrink-0 items-center gap-1 rounded-xl bg-bg-soft px-2.5 text-[13px] font-semibold text-ink"><Phone size={15} weight="fill" className="text-teal" aria-hidden />{f.tel.replace(/^033-/, '')}</a>}
                     </li>
                   )
                 })}
@@ -350,7 +351,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       )}
 
       {mode === 'preview' && route && (
-        <div className="rise absolute inset-x-0 bottom-0 z-[500] flex max-h-[58%] flex-col rounded-t-[28px] bg-bg shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div className="rise absolute inset-x-0 bottom-0 z-[1100] flex max-h-[58%] flex-col rounded-t-[28px] bg-bg shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <div className="px-5 pb-4 pt-3">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" aria-hidden />
             <p className="flex items-center gap-1 text-[14px] font-semibold text-teal"><PersonSimpleWalk size={18} weight="bold" aria-hidden />{t(lang, 'walk')}</p>
@@ -365,7 +366,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
               <button type="button" onClick={startNav} className="press flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white"><Play size={18} weight="fill" aria-hidden />{t(lang, 'startNav')}</button>
             </div>
           </div>
-          <ol className="flex-1 overflow-y-auto border-t border-line/70 py-1">
+          <ol className="flex-1 overflow-y-auto overscroll-contain border-t border-line/70 py-1">
             {route.steps.map((s, i) => {
               const { Icon } = turnInfo(s.turn)
               return (
@@ -380,7 +381,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       )}
 
       {mode === 'nav' && state && route && (
-        <div className="absolute inset-x-0 bottom-0 z-[500] flex items-center gap-3 rounded-t-[24px] bg-bg px-5 py-4 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div className="absolute inset-x-0 bottom-0 z-[1100] flex items-center gap-3 rounded-t-[24px] bg-bg px-5 py-4 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <div className="flex-1">
             {live && <p className="flex items-center gap-1 text-[12px] font-bold text-teal"><span className="h-2 w-2 animate-pulse rounded-full bg-teal" aria-hidden />{t(lang, 'gpsLive')}</p>}
             <p className="text-[22px] font-bold tracking-tight">{t(lang, 'minutes', { n: mins((state.remaining / Math.max(route.meters, 1)) * route.seconds) })} <span className="text-[15px] font-semibold text-muted">{state.remaining}m</span></p>
@@ -390,7 +391,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       )}
 
       {mode === 'arrived' && (
-        <div role="status" className="rise absolute inset-x-0 bottom-0 z-[500] flex flex-col items-center rounded-t-[28px] bg-bg px-6 pb-6 pt-8 text-center shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div role="status" className="rise absolute inset-x-0 bottom-0 z-[1100] flex flex-col items-center rounded-t-[28px] bg-bg px-6 pb-6 pt-8 text-center shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <span className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-mint-soft text-teal" aria-hidden><Confetti size={34} weight="fill" /></span>
           <p className="mt-3 text-[24px] font-bold tracking-tight">{t(lang, 'arrived')}</p>
           {room?.roomNo && room.floor != null && <p className="mt-1 text-[17px] font-semibold text-teal">{t(lang, 'floorRoom', { floor: room.floor, room: room.roomNo })}</p>}

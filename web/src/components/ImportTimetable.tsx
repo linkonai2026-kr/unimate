@@ -72,7 +72,8 @@ export default function ImportTimetable({ lang, tableId }: { lang: Lang; tableId
     const row = { id: newId(), name: '', place: '', day: 0, start: '09:00', end: '10:00' }
     change(r => (r.length < MAX_ROWS ? [...r, row] : r))
   }
-  const field = 'h-11 min-w-0 rounded-xl bg-bg-soft px-3 text-[15px] outline-none focus:ring-2 focus:ring-navy/20'
+  // 16px 글자: iOS가 입력칸을 누를 때 화면을 확대하지 않게
+  const field = 'h-11 min-w-0 rounded-xl bg-bg-soft px-3 text-[16px] outline-none focus:ring-2 focus:ring-navy/20'
 
   return (
     <div className="space-y-3 px-3 pb-40 pt-1">
@@ -105,10 +106,10 @@ export default function ImportTimetable({ lang, tableId }: { lang: Lang; tableId
             {rows.map(r => (
               <li key={r.id} className="card space-y-2 p-3">
                 <div className="flex gap-1.5">
-                  <input value={r.name} maxLength={NAME_MAX} onChange={e => edit(r.id, { name: e.target.value })} aria-label={t(lang, 'courseName')} className={`${field} flex-1 font-semibold`} />
+                  <input value={r.name} maxLength={NAME_MAX} onChange={e => edit(r.id, { name: e.target.value })} aria-label={t(lang, 'courseName')} autoComplete="off" enterKeyHint="next" className={`${field} flex-1 font-semibold`} />
                   <button type="button" onClick={() => remove(r.id)} aria-label={t(lang, 'delete')} className="press flex h-11 w-11 items-center justify-center rounded-xl text-danger"><X size={18} weight="bold" /></button>
                 </div>
-                <input value={r.place} maxLength={PLACE_MAX} onChange={e => edit(r.id, { place: e.target.value })} aria-label={t(lang, 'place')} className={`${field} w-full`} />
+                <input value={r.place} maxLength={PLACE_MAX} onChange={e => edit(r.id, { place: e.target.value })} aria-label={t(lang, 'place')} autoComplete="off" enterKeyHint="next" className={`${field} w-full`} />
                 {/* 요일은 한두 글자라 좁게, 시간 칸은 "오전 10:00"이 잘리지 않게 넓게 */}
                 <div className="grid grid-cols-[5rem_1fr_1fr] gap-1.5">
                   <select value={r.day} onChange={e => edit(r.id, { day: Number(e.target.value) })} aria-label={t(lang, 'day')} className={field.replace('px-3', 'px-2')}>{Array.from({ length: DAYS }, (_, d) => <option key={d} value={d}>{dayName(d, lang)}</option>)}</select>

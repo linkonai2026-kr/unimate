@@ -19,7 +19,7 @@ export default async function NoticeList({ lang, board, boardHref, mode = 'visit
       <nav aria-label={t(lang, 'notices')} className="rise mx-3 grid grid-cols-2 gap-1 rounded-2xl bg-line/60 p-1">
         {(['academic', 'general'] as const).map(b => (
           <Link key={b} href={boardHref[b]} aria-current={b === board ? 'page' : undefined}
-            className={`press rounded-xl py-2.5 text-center text-[15px] font-semibold ${b === board ? 'bg-bg text-ink shadow-sm' : 'text-muted'}`}>{t(lang, b === 'academic' ? 'notices' : 'generalNotices')}</Link>
+            className={`press rounded-xl py-3 text-center text-[15px] font-semibold ${b === board ? 'bg-bg text-ink shadow-sm' : 'text-muted'}`}>{t(lang, b === 'academic' ? 'notices' : 'generalNotices')}</Link>
         ))}
       </nav>
       {source === 'snapshot' && <p data-fail="notice_snapshot" className="px-5 text-[13px] text-muted">{t(lang, 'snapshot')}</p>}
@@ -34,7 +34,7 @@ export default async function NoticeList({ lang, board, boardHref, mode = 'visit
               {n.titleTr !== n.title && <p lang="ko" className="mt-0.5 text-[13px] text-muted">{n.title}</p>}
               {n.deadline && <p className="mt-2 inline-block rounded-lg bg-danger/10 px-2 py-1 text-[12px] font-bold text-danger">{t(lang, 'deadline')} {n.deadline}{n.dday && ` · ${n.dday}`}</p>}
               {n.bullets.length > 0
-                ? <ul className="mt-3 space-y-1 text-[15px]">{n.bullets.map((b, i) => <li key={i} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden />{b}</li>)}</ul>
+                ? <ul className="mt-3 space-y-1 text-[15px]">{n.bullets.map((b, i) => <li key={i} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden /><span className="min-w-0 flex-1">{b}</span></li>)}</ul>
                 : n.excerpt && <p lang="ko" className="mt-3 line-clamp-3 text-[15px] leading-relaxed text-ink/80">{n.excerpt}</p>}
               <ApplyHelper n={n} lang={lang} mode={mode} taskId={saved[`${n.board}:${n.id}`] ?? null} />
               {(n.images > 0 || n.files.length > 0) && (

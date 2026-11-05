@@ -26,7 +26,7 @@ export default async function MessagesPage({ searchParams }: PageProps<'/message
                 <Link href={`/messages/${other.handle}`} className="tap flex items-center gap-3 px-5 py-3">
                   <Avatar n={other.avatar ?? 0} photo={other.photo} size={48} />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 text-[16px] font-bold">{other.nickname}<Flag code={other.nationality} size={12} /></span>
+                    <span className="flex min-w-0 items-center gap-1.5 text-[16px] font-bold"><span className="truncate">{other.nickname}</span><Flag code={other.nationality} size={12} /></span>
                     {/* 내가 보낸 마지막 쪽지는 내가 쓴 그대로 */}
                     <span className="mt-0.5 block truncate text-[14px] text-muted">{last.fromId === me.id ? last.body : pickText(last, 'body', last.body, lang).text}</span>
                   </span>
@@ -38,11 +38,11 @@ export default async function MessagesPage({ searchParams }: PageProps<'/message
         )}
       </div>
       {picking && (
-        <Sheet close="/messages">
+        <Sheet close="/messages" closeLabel={t(lang, 'close')}>
           <p className="px-1 pb-2 text-[19px] font-bold">{t(lang, 'pickFriendToMessage')}</p>
           {friends.length === 0
             ? <Empty icon={<UserPlus size={28} />} title={t(lang, 'noFriendsYet')} action={<Link href="/friends" className={btn.primary}>{t(lang, 'addFriend')}</Link>} />
-            : <ul className="-mx-5 max-h-[50dvh] overflow-y-auto">{friends.map(f => <li key={f.id}><Row href={`/messages/${f.handle}`} icon={<Avatar n={f.avatar ?? 0} photo={f.photo} size={40} />} title={<span className="flex items-center gap-1.5">{f.nickname}<Flag code={f.nationality} size={12} /></span>} sub={`@${f.handle}`} /></li>)}</ul>}
+            : <ul className="-mx-5 max-h-[50dvh] overflow-y-auto">{friends.map(f => <li key={f.id}><Row href={`/messages/${f.handle}`} icon={<Avatar n={f.avatar ?? 0} photo={f.photo} size={40} />} title={<span className="flex min-w-0 items-center gap-1.5"><span className="truncate">{f.nickname}</span><Flag code={f.nationality} size={12} /></span>} sub={`@${f.handle}`} /></li>)}</ul>}
         </Sheet>
       )}
     </div>

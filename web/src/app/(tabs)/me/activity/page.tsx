@@ -27,7 +27,7 @@ export default async function ActivityPage({ searchParams }: PageProps<'/me/acti
       <nav className="rise mx-3 grid grid-cols-3 gap-1 rounded-2xl bg-line/60 p-1" aria-label={t(lang, 'me')}>
         {(Object.keys(TABS) as Tab[]).map(k => (
           <Link key={k} href={`/me/activity?tab=${k}`} replace aria-current={tab === k ? 'page' : undefined}
-            className={`press rounded-xl py-2.5 text-center text-[14px] font-semibold ${tab === k ? 'bg-bg text-ink shadow-sm' : 'text-muted'}`}>{t(lang, TABS[k])}</Link>
+            className={`press flex min-h-11 items-center justify-center rounded-xl px-1 text-center text-[14px] font-semibold leading-tight ${tab === k ? 'bg-bg text-ink shadow-sm' : 'text-muted'}`}>{t(lang, TABS[k])}</Link>
         ))}
       </nav>
       <div className="rise card mx-3 divide-y divide-line/70 overflow-hidden">

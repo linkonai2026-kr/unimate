@@ -14,7 +14,7 @@ import { getTaskStore } from '@/lib/deadlines/store'
 import { dDayOf } from '@/lib/deadlines/when'
 import { t } from '@/lib/i18n'
 
-const chip = 'press inline-flex h-10 items-center gap-1.5 rounded-xl bg-bg-soft px-3 text-[14px] font-semibold text-ink'
+const chip = 'press inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-bg-soft px-3 text-[14px] font-semibold text-ink'
 
 function Step({ n, done, title, children }: { n: number; done?: boolean; title: string; children: ReactNode }) {
   return (
@@ -66,8 +66,8 @@ export default async function DeadlinePrepPage({ params, searchParams }: PagePro
                 return (
                   <li key={i}>
                     <form action={toggleTaskItem.bind(null, task.id, i)}>
-                      <button aria-pressed={on} className={`tap flex w-full items-center gap-2 rounded-lg py-1.5 text-left text-[15px] ${on ? 'text-muted line-through' : ''}`}>
-                        {on ? <CheckSquare size={22} weight="fill" className="shrink-0 text-teal" aria-hidden /> : <Square size={22} className="shrink-0 text-muted" aria-hidden />}{d}
+                      <button aria-pressed={on} className={`tap flex min-h-11 w-full items-center gap-2 rounded-lg py-2 text-left text-[15px] ${on ? 'text-muted line-through' : ''}`}>
+                        {on ? <CheckSquare size={22} weight="fill" className="shrink-0 text-teal" aria-hidden /> : <Square size={22} className="shrink-0 text-muted" aria-hidden />}<span className="min-w-0 flex-1 text-left">{d}</span>
                       </button>
                     </form>
                   </li>

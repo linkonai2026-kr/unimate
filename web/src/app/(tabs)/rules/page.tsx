@@ -28,7 +28,7 @@ export default async function RulesPage() {
       {RULES.map(({ title }, i) => (
         <li key={title} className="rise card mx-3 flex gap-4 p-5">
           <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-navy text-[15px] font-bold text-white">{i + 1}</span>
-          <span>
+          <span className="min-w-0">
             <span className="block text-[17px] font-bold">{texts[i * 2]}</span>
             <span className="mt-1 block text-[15px] leading-relaxed text-muted">{texts[i * 2 + 1]}</span>
           </span>

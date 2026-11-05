@@ -47,7 +47,8 @@ export default function GradeEditor({ lang, initial }: { lang: Lang; initial: Gr
       setError(t(lang, 'tryAgain'))
     }
   })
-  const field = 'h-11 min-w-0 rounded-xl bg-bg-soft px-3 text-[15px] outline-none focus:ring-2 focus:ring-navy/20'
+  // 16px 글자: iOS가 입력칸을 누를 때 화면을 확대하지 않게
+  const field = 'h-11 min-w-0 rounded-xl bg-bg-soft px-3 text-[16px] outline-none focus:ring-2 focus:ring-navy/20'
 
   return (
     <div className="space-y-3 px-3 pb-40 pt-1">
@@ -61,8 +62,8 @@ export default function GradeEditor({ lang, initial }: { lang: Lang; initial: Gr
       </section>
 
       <nav className="flex gap-1.5 overflow-x-auto px-1 py-1">
-        {sems.map((s, i) => <button key={i} type="button" onClick={() => setCur(i)} aria-pressed={s === sem} className={`press shrink-0 rounded-full px-4 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg text-ink'}`}>{gradeSemLabel(s.name, lang)}</button>)}
-        {sems.length < Math.min(SEM_NAMES.length, MAX_SEMS) && <button type="button" onClick={addSemester} className="press flex shrink-0 items-center gap-1 rounded-full bg-bg px-4 py-2 text-[14px] font-semibold text-teal"><Plus size={14} weight="bold" />{t(lang, 'addSemester')}</button>}
+        {sems.map((s, i) => <button key={i} type="button" onClick={() => setCur(i)} aria-pressed={s === sem} className={`press inline-flex min-h-11 shrink-0 items-center rounded-full px-4 py-2.5 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg text-ink'}`}>{gradeSemLabel(s.name, lang)}</button>)}
+        {sems.length < Math.min(SEM_NAMES.length, MAX_SEMS) && <button type="button" onClick={addSemester} className="press flex min-h-11 shrink-0 items-center gap-1 rounded-full bg-bg px-4 py-2.5 text-[14px] font-semibold text-teal"><Plus size={14} weight="bold" />{t(lang, 'addSemester')}</button>}
       </nav>
 
       <section className="rise card space-y-2 p-4">
@@ -74,13 +75,14 @@ export default function GradeEditor({ lang, initial }: { lang: Lang; initial: Gr
                 <input value={r.name} maxLength={30} onChange={e => setRow(i, { name: e.target.value })} aria-label={t(lang, 'courseName')} placeholder={t(lang, 'courseName')} className={`${field} flex-1`} />
                 <button type="button" onClick={() => edit(s => ({ ...s, rows: s.rows.filter((_, j) => j !== i) }))} aria-label={t(lang, 'delete')} className="press flex h-11 w-11 items-center justify-center rounded-xl text-danger"><X size={18} weight="bold" /></button>
               </div>
-              <div className="grid grid-cols-3 gap-1.5">
+              {/* 좁은 화면에서 세 칸이 비좁지 않게 학점·성적은 한 줄, 전공 체크는 그 아래 한 줄 */}
+              <div className="grid grid-cols-2 gap-1.5">
                 <select value={r.credit} onChange={e => setRow(i, { credit: Number(e.target.value) })} aria-label={t(lang, 'creditAll')} className={field}>
                   {/* 예전에 저장된 학점이 목록에 없으면 그 값도 보여 준다 */}
                   {(CREDITS.includes(r.credit) ? CREDITS : [...CREDITS, r.credit].sort((a, b) => a - b)).map(n => <option key={n} value={n}>{t(lang, 'creditsN', { n: String(n) })}</option>)}
                 </select>
                 <select value={r.grade} onChange={e => setRow(i, { grade: e.target.value })} aria-label={t(lang, 'grade')} className={field}>{GRADE_KEYS.map(g => <option key={g}>{g}</option>)}</select>
-                <label className={`${field} flex items-center justify-center gap-1.5 font-medium`}><input type="checkbox" checked={r.major} onChange={e => setRow(i, { major: e.target.checked })} className="h-4 w-4 accent-[var(--teal)]" />{t(lang, 'major')}</label>
+                <label className={`${field} col-span-2 flex items-center justify-center gap-1.5 font-medium`}><input type="checkbox" checked={r.major} onChange={e => setRow(i, { major: e.target.checked })} className="h-4 w-4 accent-[var(--teal)]" />{t(lang, 'major')}</label>
               </div>
             </li>
           ))}

@@ -37,7 +37,7 @@ export default async function MePage() {
         {ACTIVITY.map(([tab, key, Icon, tone]) => (
           <Link key={tab} href={`/me/activity?tab=${tab}`} className="press flex flex-col items-center gap-2 rounded-2xl py-1">
             <IconBox tone={tone} size={48}><Icon size={24} weight="fill" aria-hidden /></IconBox>
-            <span className="text-[13px] font-medium">{t(lang, key)}</span>
+            <span className="px-0.5 text-center text-[13px] font-medium leading-tight">{t(lang, key)}</span>
           </Link>
         ))}
       </section>

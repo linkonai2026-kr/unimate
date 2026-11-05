@@ -17,7 +17,7 @@ export function MenuError({ lang }: { lang: Lang }) {
       <WarningCircle size={36} weight="fill" className="text-danger" aria-hidden />
       <p className="text-[16px] font-bold">{t(lang, 'menuError')}</p>
       <RefreshButton label={t(lang, 'retry')} />
-      <a href={MENU_URL} target="_blank" rel="noopener noreferrer" className="press inline-flex items-center gap-1 text-[14px] font-semibold text-muted">
+      <a href={MENU_URL} target="_blank" rel="noopener noreferrer" className="press inline-flex min-h-11 items-center gap-1 px-2 text-[14px] font-semibold text-muted">
         {t(lang, 'viewOriginalSite')}<ArrowSquareOut size={14} aria-hidden />
       </a>
     </div>
@@ -67,7 +67,7 @@ export default async function MenuList({ lang }: { lang: Lang }) {
           </section>
         )
       })}
-      <p className="px-5 text-[12px] text-[#8b93a1]">{t(lang, 'weekMenu')} · kangwon.ac.kr</p>
+      <p className="px-5 text-[12px] text-muted">{t(lang, 'weekMenu')} · kangwon.ac.kr</p>
     </div>
   )
 }

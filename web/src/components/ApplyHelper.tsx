@@ -7,7 +7,7 @@ import { HOW_KEY, icsHref, officeRouteHref } from '@/lib/deadlines/links'
 import { t, type Lang } from '@/lib/i18n'
 import type { NoticeCard } from '@/lib/school/service'
 
-const chip = 'press inline-flex h-10 items-center gap-1.5 rounded-xl bg-bg px-3 text-[14px] font-semibold text-ink'
+const chip = 'press inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-bg px-3 text-[14px] font-semibold text-ink'
 
 export default function ApplyHelper({ n, lang, mode, taskId }: { n: NoticeCard; lang: Lang; mode: 'student' | 'visit'; taskId: string | null }) {
   const a = n.apply
@@ -32,7 +32,7 @@ export default function ApplyHelper({ n, lang, mode, taskId }: { n: NoticeCard; 
           ? <Link href={`/deadlines/${taskId}`} className={`${chip} text-teal`}><CheckCircle size={17} weight="fill" aria-hidden />{t(lang, 'openPrep')}</Link>
           : (
             <form action={prepareNotice.bind(null, n.board, n.id)}>
-              <button data-track="prepare" className="press inline-flex h-10 items-center gap-1.5 rounded-xl bg-teal px-3 text-[14px] font-bold text-white"><Sparkle size={17} weight="fill" aria-hidden />{t(lang, 'prepareApply')}</button>
+              <button data-track="prepare" className="press inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-teal px-3 text-[14px] font-bold text-white"><Sparkle size={17} weight="fill" aria-hidden />{t(lang, 'prepareApply')}</button>
             </form>
           ))}
         {ics && <a href={ics} data-track="ics" className={chip}><CalendarPlus size={17} aria-hidden />{t(lang, 'addCalendar')}</a>}
