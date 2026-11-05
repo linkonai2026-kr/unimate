@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* 앱 색·글꼴 토큰(Tailwind 색 이름으로도 쓴다) */
+:root {
+  --navy: #011d48;
+  --navy-deep: #00122e;
+  --mint: #5bd2b4;
+  --mint-ink: #053a31;
+  --mint-text: #17806f;
+  --mint-soft: #e6f8f3;
+  --ink: #0f1a2e;
+  --muted: #6b7484;
+  --line: #e6e9ee;
+  --bg: #ffffff;
+  --bg-soft: #f2f4f7;
+  --danger: #e5484d;
+  --teal: #27a395;
+  --star: #f5b400;
+  /* 밝은 화면만 지원한다(다크 모드에서 폼·스크롤바가 어둡게 섞이지 않게) */
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
+  --color-mint: var(--mint);
+  --color-mint-ink: var(--mint-ink);
+  --color-mint-text: var(--mint-text);
+  --color-mint-soft: var(--mint-soft);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-danger: var(--danger);
+  --color-teal: var(--teal);
+  --color-star: var(--star);
+  --font-sans: var(--font-pretendard), -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+html, body { background: var(--bg-soft); color: var(--ink); }
+body { font-family: var(--font-sans); letter-spacing: -0.01em; word-break: keep-all; -webkit-tap-highlight-color: transparent; }
+.card { background: var(--bg); border-radius: 20px; }
+
+/* 키보드로 움직일 때만 초점 테두리(손가락으로 누를 땐 안 보이게). base 층이라 outline-none 같은 유틸리티가 이긴다 */
+@layer base {
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  summary::-webkit-details-marker { display: none; }
+}
+
+/* 토스식 누름 반응: 눌린 동안 살짝 작아진다 */
+.press { transition: transform .15s cubic-bezier(.16,1,.3,1), background-color .15s; }
+.press:active { transform: scale(.98); }
+.tap:active { background: var(--bg-soft); }
+
+/* 화면이 바뀔 때 아래에서 살짝 떠오르기 */
+@keyframes rise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.rise { animation: rise .35s cubic-bezier(.16,1,.3,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none }
+  .press { transition: none }
+  .press:active { transform: none }
+}
+
+/* 지도 건물 이름표: 작고 또렷하게, 고른 건물은 청록 */
+.leaflet-tooltip.pin-label { padding: 3px 7px; border: 0; border-radius: 8px; font: 700 11px/1.2 var(--font-sans, system-ui); color: var(--navy); box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+.leaflet-tooltip.pin-label-on { background: var(--teal); color: #fff; font-size: 13px; }
+.leaflet-tooltip.pin-label-on::before { border-top-color: var(--teal); }
+/* 건물 이름표: 멀리서 보면 27개가 겹쳐서 점만 보이고, 가까이 가거나 고른 건물은 이름을 띄운다 */
+.labels-far .leaflet-tooltip.pin-label:not(.pin-label-on), .labels-far .kpin-label { display: none; }
