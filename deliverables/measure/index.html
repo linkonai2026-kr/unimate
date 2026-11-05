@@ -1,0 +1,427 @@
+<!doctype html>
+<!-- 실사용 측정 기록: 팀 밖 유학생이 공지 1건의 마감·방법을 찾는 시간을 기존 방식 vs Unimate로 잰다(이름·학번은 받지 않음) -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unimate 측정 기록</title>
+<style>
+  :root { --bg:#f2f4f7; --card:#fff; --ink:#0f1a2e; --muted:#6b7484; --line:#e6e9ee; --navy:#011d48; --mint:#5bd2b4; --teal:#27a395; --soft:#e6f8f3; --danger:#e5484d; --dangersoft:#fdecec; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0b1220; --card:#131c2e; --ink:#eef2f7; --muted:#97a1b3; --line:#243049; --navy:#2a4a85; --soft:#12352f; --dangersoft:#3a1d22; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 Pretendard, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:16px; }
+  h1 { font-size:24px; margin:8px 0 4px; } h2 { font-size:18px; margin:0 0 12px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  .card { background:var(--card); border-radius:20px; padding:20px; margin-bottom:14px; }
+  fieldset { border:0; margin:0; padding:0; min-width:0; }
+  label, legend { display:block; font-size:14px; color:var(--muted); margin:10px 0 4px; padding:0; }
+  input, select { width:100%; height:44px; border:1px solid var(--line); border-radius:12px; padding:0 12px; font:inherit; background:var(--card); color:var(--ink); }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chips label { display:flex; align-items:center; gap:6px; margin:0; padding:8px 12px; border:1px solid var(--line); border-radius:999px; color:var(--ink); cursor:pointer; }
+  .chips input { width:auto; height:auto; }
+  button { font:inherit; font-weight:700; border:0; border-radius:14px; min-height:48px; padding:0 18px; cursor:pointer; background:var(--line); color:var(--ink); }
+  button.primary { background:var(--navy); color:#fff; } button.go { background:var(--teal); color:#fff; } button.stop { background:var(--danger); color:#fff; }
+  button:disabled { opacity:.45; cursor:default; }
+  :focus-visible { outline:3px solid var(--teal); outline-offset:2px; }
+  .big { width:100%; min-height:64px; font-size:20px; }
+  .timer { font-size:56px; font-weight:800; text-align:center; font-variant-numeric:tabular-nums; margin:8px 0; }
+  .pill { display:inline-block; padding:3px 10px; border-radius:999px; font-size:13px; font-weight:700; background:var(--soft); color:var(--teal); }
+  .pill.old { background:var(--dangersoft); color:var(--danger); }
+  .task { background:var(--soft); border-radius:14px; padding:14px; margin:12px 0; }
+  .task p { margin:2px 0; } .task .ko { font-weight:700; }
+  .key { border-left:4px solid var(--mint); padding:6px 12px; margin:10px 0; font-size:14px; }
+  .scale { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .scale button[aria-pressed="true"], .yn button[aria-pressed="true"] { background:var(--navy); color:#fff; }
+  .yn { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .tablewrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:14px; } th, td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:center; }
+  th { color:var(--muted); font-weight:600; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  a { color:var(--teal); word-break:break-all; }
+  details summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  .msg { min-height:1.5em; margin:8px 0 0; font-size:14px; color:var(--danger); }
+  .msg.ok { color:var(--teal); }
+  [hidden] { display:none !important; }
+  @media (max-width:520px) { .row { grid-template-columns:1fr; } .timer { font-size:44px; } .card { padding:16px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Unimate 측정 기록</h1>
+  <p class="sub">팀 밖 유학생 3명 이상 · 공지 1건의 <b>마감일·신청 방법</b>을 찾는 시간 · 기존 방식(학교 홈페이지 + 번역기) vs Unimate. 이름·학번·연락처는 받지 않습니다.</p>
+  <p class="msg" id="storageMsg" role="alert" hidden>이 브라우저에서는 기록을 저장할 수 없습니다. 이 탭을 닫기 전에 CSV를 저장하세요.</p>
+
+  <section class="card" id="setup" aria-labelledby="setupH">
+    <h2 id="setupH">1. 참가자</h2>
+    <div class="row">
+      <div><label for="code">참가자 번호(자동)</label><input id="code" readonly></div>
+      <div><label for="lang">주로 쓰는 언어</label>
+        <select id="lang"><option value="vi">Tiếng Việt</option><option value="zh">中文</option><option value="uz">Oʻzbekcha</option><option value="en">English</option><option value="other">기타</option></select></div>
+    </div>
+    <label for="place">측정 장소</label><input id="place" maxlength="80">
+    <fieldset>
+      <legend>사전 질문 ① 에브리타임(에타)을 쓰나요?</legend>
+      <div class="chips" id="eta">
+        <label><input type="radio" name="eta" value="매일">매일</label>
+        <label><input type="radio" name="eta" value="가끔">가끔</label>
+        <label><input type="radio" name="eta" value="거의 안 씀">거의 안 씀</label>
+        <label><input type="radio" name="eta" value="설치 안 함">설치 안 함·모름</label>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>사전 질문 ② 학교 공지·정보는 주로 어디서 얻나요? (여러 개)</legend>
+      <div class="chips" id="src">
+        <label><input type="checkbox" value="학교 홈페이지">학교 홈페이지</label>
+        <label><input type="checkbox" value="에타">에타</label>
+        <label><input type="checkbox" value="단톡방">단톡방(카톡 등)</label>
+        <label><input type="checkbox" value="친구·선배">친구·선배</label>
+        <label><input type="checkbox" value="국제교류처">국제교류처</label>
+        <label><input type="checkbox" value="기타">기타</label>
+      </div>
+    </fieldset>
+    <div class="actions"><button type="button" class="primary" id="begin">측정 시작</button></div>
+    <p class="msg" id="setupMsg" role="alert"></p>
+  </section>
+
+  <section class="card" id="trial" aria-labelledby="trialTitle" hidden>
+    <h2 id="trialTitle"></h2>
+    <span class="pill" id="methodPill"></span>
+    <div class="task">
+      <p class="ko">이 공지의 신청 마감일과 신청 방법을 말해 주세요.</p>
+      <p lang="en">Tell us the application deadline and how to apply for this notice.</p>
+      <p lang="vi">Hãy cho biết hạn chót đăng ký và cách đăng ký của thông báo này.</p>
+      <p lang="zh">请说出这则通知的报名截止时间和报名方法。</p>
+      <p lang="uz">Ushbu e'londagi ariza topshirish muddati va ariza berish usulini ayting.</p>
+    </div>
+    <p id="howTo"></p>
+    <div class="key" id="answerKey"></div>
+    <div class="timer" id="clock" role="timer" aria-label="경과 시간">0:00</div>
+    <button type="button" class="big go" id="startBtn">시작 (참가자가 화면을 보기 시작)</button>
+    <button type="button" class="big stop" id="stopBtn" hidden>멈춤 (마감일과 방법을 다 말함)</button>
+
+    <div id="grade" hidden>
+      <fieldset>
+        <legend>마감일을 맞혔나요?</legend>
+        <div class="yn" data-k="deadlineOk"><button type="button" data-v="1" aria-pressed="false">맞음</button><button type="button" data-v="0" aria-pressed="false">틀림</button></div>
+      </fieldset>
+      <fieldset>
+        <legend>신청 방법을 맞혔나요?</legend>
+        <div class="yn" data-k="methodOk"><button type="button" data-v="1" aria-pressed="false">맞음</button><button type="button" data-v="0" aria-pressed="false">틀림</button></div>
+      </fieldset>
+      <fieldset>
+        <legend>불안도 — 이 답으로 마감을 놓칠까 얼마나 걱정되나요? (1 전혀 ~ 5 매우)<br>
+          <small>How worried are you about missing the deadline? · Bạn lo lắng đến mức nào sẽ lỡ hạn? · 你有多担心错过截止时间？ · Muddatni o'tkazib yuborishdan qanchalik xavotirdasiz?</small></legend>
+        <div class="scale" data-k="anxiety"><button type="button" data-v="1" aria-pressed="false">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="3" aria-pressed="false">3</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="5" aria-pressed="false">5</button></div>
+      </fieldset>
+      <div class="actions"><button type="button" class="primary" id="saveTrial" disabled>저장하고 다음</button></div>
+    </div>
+    <div class="actions"><button type="button" id="redo">이번 시도 다시</button></div>
+  </section>
+
+  <section class="card" aria-labelledby="resH">
+    <h2 id="resH">2. 결과</h2>
+    <div id="summary" aria-live="polite"></div>
+    <div class="tablewrap"><table><thead><tr><th scope="col">참가자</th><th scope="col">언어</th><th scope="col">에타</th><th scope="col">기존 방식</th><th scope="col">Unimate</th><th scope="col">줄어든 시간</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="actions">
+      <button type="button" class="primary" id="csv">CSV 저장 (PPT 반영용)</button>
+      <button type="button" id="undo">마지막 참가자 지우기</button>
+    </div>
+    <p class="msg" id="resMsg" role="status"></p>
+    <p class="sub" style="margin-top:10px">CSV는 <b>deliverables/measure/results.csv</b>로 저장한 뒤 PPT 생성 스크립트를 돌리면 표지 <code>__분</code>과 12번 측정표가 채워집니다.</p>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>설정: 앱 주소·측정 공지 바꾸기 (공지가 앱 목록에서 사라졌을 때)</summary>
+      <label for="appUrl">Unimate 주소</label><input id="appUrl" type="url" inputmode="url">
+      <div id="noticeForm"></div>
+      <div class="actions"><button type="button" id="saveCfg">설정 저장</button><button type="button" id="resetCfg">기본값</button></div>
+      <p class="msg" id="cfgMsg" role="status"></p>
+    </details>
+  </section>
+</main>
+
+<script>
+'use strict'
+// 기본 측정 공지: 2026-11-05 학교 사이트 원문으로 정답 확인(요약이 아니라 원문 기준)
+const DEFAULT_CFG = {
+  appUrl: 'http://localhost:3100',
+  notices: [
+    { key: 'A', title: '(기초) 2026-2학기 전교생 파이썬 교육 모집 안내', board: 'general', url: 'https://www.kangwon.ac.kr/ko/bbs/504/detail.do?pstSn=11591',
+      answer: '마감 11/8(일) 24:00 · 방법: 구글폼으로 신청' },
+    { key: 'B', title: '(삼척캠퍼스) 2027학년도 1학기 부복수전공 신청 안내', board: 'academic', url: 'https://www.kangwon.ac.kr/ko/bbs/720/detail.do?pstSn=2613',
+      answer: '마감 11/19(목) 18:00 (기간 11/9 10:00~) · 방법: K-Cloud > 학부생서비스 > 교과 > 학적 > 부·복수전공 신청' },
+  ],
+}
+const KEY_CFG = 'unimate-measure-cfg', KEY_PEOPLE = 'unimate-measure-people', KEY_PLACE = 'unimate-measure-place'
+const DEFAULT_PLACE = '5공학관 604호'
+const LANGS = ['vi', 'zh', 'uz', 'en', 'other']
+const ETAS = ['매일', '가끔', '거의 안 씀', '설치 안 함']
+const clone = o => JSON.parse(JSON.stringify(o))
+
+// ---------- 저장소: 사용 불가·깨진 JSON이어도 기본값으로 동작 ----------
+let storageOk = true
+const store = {
+  get(k, d) {
+    try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v) } catch { return d }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); return true } catch { storageOk = false; showStorageWarning(); return false }
+  },
+}
+function showStorageWarning() { const m = document.getElementById('storageMsg'); if (m) m.hidden = storageOk }
+
+// ---------- 유틸 ----------
+const $ = id => document.getElementById(id)
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const isHttpUrl = s => { try { const u = new URL(String(s)); return u.protocol === 'http:' || u.protocol === 'https:' } catch { return false } }
+const safeUrl = s => isHttpUrl(s) ? String(s) : ''
+const isNum = x => typeof x === 'number' && Number.isFinite(x)
+const localDate = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
+const fmt = s => {
+  if (!isNum(s)) return '—'
+  const t = Math.round(Math.abs(s)), neg = s < 0 && t > 0
+  return `${neg ? '−' : ''}${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`
+}
+function say(id, text, ok) { const el = $(id); el.textContent = text; el.classList.toggle('ok', !!ok) }
+
+// ---------- 설정·기록 불러오기(형식 검증) ----------
+function sanitizeCfg(raw) {
+  const def = clone(DEFAULT_CFG)
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.notices)) return def
+  const notices = def.notices.map(d => {
+    const n = raw.notices.find(x => x && x.key === d.key)
+    if (!n) return d
+    const str = (v, f) => typeof v === 'string' && v.trim() ? v : f
+    return { key: d.key, title: str(n.title, d.title), board: n.board === 'academic' || n.board === 'general' ? n.board : d.board, url: isHttpUrl(n.url) ? n.url : d.url, answer: str(n.answer, d.answer) }
+  })
+  return { appUrl: isHttpUrl(raw.appUrl) ? raw.appUrl : def.appUrl, notices }
+}
+function sanitizeTrial(t) {
+  if (!t || typeof t !== 'object') return null
+  if (!['A', 'B'].includes(t.notice) || !['old', 'app'].includes(t.method)) return null
+  if (!isNum(t.seconds) || t.seconds < 0) return null
+  if (![0, 1].includes(t.deadlineOk) || ![0, 1].includes(t.methodOk)) return null
+  if (!Number.isInteger(t.anxiety) || t.anxiety < 1 || t.anxiety > 5) return null
+  return { notice: t.notice, method: t.method, seconds: t.seconds, deadlineOk: t.deadlineOk, methodOk: t.methodOk, anxiety: t.anxiety }
+}
+function sanitizePeople(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(p => p && typeof p === 'object' && typeof p.code === 'string' && Array.isArray(p.trials)).map(p => ({
+    code: p.code,
+    lang: typeof p.lang === 'string' ? p.lang : 'other',
+    eta: typeof p.eta === 'string' ? p.eta : '',
+    sources: Array.isArray(p.sources) ? p.sources.filter(s => typeof s === 'string') : [],
+    date: typeof p.date === 'string' ? p.date : '',
+    place: typeof p.place === 'string' ? p.place : '',
+    trials: p.trials.map(sanitizeTrial).filter(Boolean),
+  }))
+}
+
+let cfg = sanitizeCfg(store.get(KEY_CFG, null))
+let people = sanitizePeople(store.get(KEY_PEOPLE, []))
+let cur = null, trialIdx = 0, grade = {}
+let running = false, t0 = 0, tick = null
+
+const nextCode = () => `P${people.reduce((m, p) => Math.max(m, Number(/^P(\d+)$/.exec(p.code)?.[1]) || 0), 0) + 1}`
+const appLink = n => `${cfg.appUrl.replace(/\/+$/, '')}/notices${n.board === 'general' ? '?b=general' : ''}`
+
+// 순서 균형: 홀수 번째 참가자는 A=기존·B=Unimate, 짝수 번째는 A=Unimate·B=기존 (같은 공지를 두 번 읽는 학습 효과를 피함)
+const planFor = i => i % 2 === 0
+  ? [{ notice: 'A', method: 'old' }, { notice: 'B', method: 'app' }]
+  : [{ notice: 'A', method: 'app' }, { notice: 'B', method: 'old' }]
+
+// ---------- 참가자 설정 ----------
+function renderSetup() {
+  $('code').value = nextCode()
+  const place = store.get(KEY_PLACE, DEFAULT_PLACE)
+  $('place').value = typeof place === 'string' && place.trim() ? place : DEFAULT_PLACE
+  document.querySelectorAll('#eta input, #src input').forEach(i => { i.checked = false })
+  say('setupMsg', '')
+}
+
+function startPerson() {
+  const eta = document.querySelector('#eta input:checked')?.value
+  if (!eta) { say('setupMsg', '사전 질문 ①을 골라 주세요'); return }
+  const place = $('place').value.trim()
+  if (!place) { say('setupMsg', '측정 장소를 입력해 주세요'); $('place').focus(); return }
+  const lang = $('lang').value
+  if (!LANGS.includes(lang) || !ETAS.includes(eta)) { say('setupMsg', '입력값이 올바르지 않습니다'); return }
+  const sources = [...document.querySelectorAll('#src input:checked')].map(i => i.value)
+  store.set(KEY_PLACE, place)
+  cur = { code: nextCode(), lang, eta, sources, date: localDate(), place, trials: [], plan: planFor(people.length) }
+  trialIdx = 0
+  $('setup').hidden = true; $('trial').hidden = false
+  renderTrial()
+  $('startBtn').focus()
+}
+
+// ---------- 시도 ----------
+function resetTimer() {
+  if (tick !== null) { clearInterval(tick); tick = null }
+  running = false; t0 = 0
+}
+
+function renderTrial() {
+  resetTimer()
+  const p = cur.plan[trialIdx]
+  const n = cfg.notices.find(x => x.key === p.notice)
+  const old = p.method === 'old'
+  $('trialTitle').textContent = `${cur.code} · 시도 ${trialIdx + 1}/2 · 공지 ${n.key}`
+  $('methodPill').textContent = old ? '기존 방식: 학교 홈페이지 + 번역기' : 'Unimate: 앱에서 자기 언어로'
+  $('methodPill').className = `pill${old ? ' old' : ''}`
+  $('howTo').innerHTML = old
+    ? `참가자 폰에서 학교 공지 원문을 엽니다. 번역기(파파고·구글 등)는 자유롭게 써도 됩니다.<br><a href="${esc(safeUrl(n.url))}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a>`
+    : `데모 계정 언어를 참가자 언어로 맞춘 뒤, 앱 공지 화면을 엽니다. 목록에서 이 공지를 찾게 합니다: <b>${esc(n.title)}</b><br><a href="${esc(safeUrl(appLink(n)))}" target="_blank" rel="noopener noreferrer">${esc(appLink(n))}</a>`
+  $('answerKey').innerHTML = `<b>정답(진행자만 보기)</b><br>${esc(n.answer)}`
+  $('clock').textContent = '0:00'
+  $('startBtn').hidden = false; $('stopBtn').hidden = true; $('grade').hidden = true
+  grade = {}
+  document.querySelectorAll('#grade button[aria-pressed]').forEach(b => b.setAttribute('aria-pressed', 'false'))
+  $('saveTrial').disabled = true
+}
+
+function start() {
+  if (running) return
+  running = true
+  t0 = performance.now()
+  $('startBtn').hidden = true; $('stopBtn').hidden = false
+  tick = setInterval(() => { $('clock').textContent = fmt((performance.now() - t0) / 1000) }, 200)
+  $('stopBtn').focus()
+}
+function stop() {
+  if (!running) return
+  const elapsed = performance.now() - t0
+  resetTimer()
+  grade.seconds = Math.round(elapsed / 100) / 10
+  $('clock').textContent = fmt(grade.seconds)
+  $('stopBtn').hidden = true; $('grade').hidden = false
+  document.querySelector('#grade .yn button').focus()
+}
+function gradeComplete() {
+  return isNum(grade.seconds) && [0, 1].includes(grade.deadlineOk) && [0, 1].includes(grade.methodOk) &&
+    Number.isInteger(grade.anxiety) && grade.anxiety >= 1 && grade.anxiety <= 5
+}
+document.querySelectorAll('#grade [data-k]').forEach(group => group.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return
+  const v = Number(b.dataset.v), k = group.dataset.k
+  if (k === 'anxiety' ? !(Number.isInteger(v) && v >= 1 && v <= 5) : !(v === 0 || v === 1)) return
+  group.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))
+  grade[k] = v
+  $('saveTrial').disabled = !gradeComplete()
+}))
+
+function saveTrial() {
+  if (!cur || running || !gradeComplete()) return
+  const p = cur.plan[trialIdx]
+  cur.trials.push({ notice: p.notice, method: p.method, seconds: grade.seconds, deadlineOk: grade.deadlineOk, methodOk: grade.methodOk, anxiety: grade.anxiety })
+  if (++trialIdx < cur.plan.length) { renderTrial(); $('startBtn').focus(); return }
+  const { plan, ...person } = cur
+  people.push(person); store.set(KEY_PEOPLE, people); cur = null
+  $('trial').hidden = true; $('setup').hidden = false
+  renderSetup(); renderResults()
+  $('begin').focus()
+}
+
+// ---------- 결과 ----------
+const avg = xs => { const v = xs.filter(isNum); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null }
+function stats(method) {
+  const ts = people.flatMap(p => p.trials.filter(t => t.method === method))
+  return { n: ts.length, sec: avg(ts.map(t => t.seconds)), ok: ts.filter(t => t.deadlineOk === 1 && t.methodOk === 1).length, anx: avg(ts.map(t => t.anxiety)) }
+}
+const one = x => isNum(x) ? x.toFixed(1) : '—'
+function renderResults() {
+  $('rows').innerHTML = people.map(p => {
+    const o = p.trials.find(t => t.method === 'old'), a = p.trials.find(t => t.method === 'app')
+    return `<tr><td>${esc(p.code)}</td><td>${esc(p.lang)}</td><td>${esc(p.eta)}</td><td>${fmt(o?.seconds)}</td><td>${fmt(a?.seconds)}</td><td>${o && a ? fmt(o.seconds - a.seconds) : '—'}</td></tr>`
+  }).join('') || '<tr><td colspan="6">아직 없음</td></tr>'
+  if (!people.length) { $('summary').textContent = ''; return }
+  const o = stats('old'), a = stats('app')
+  const eta = people.filter(p => p.eta === '거의 안 씀' || p.eta === '설치 안 함').length
+  const cut = isNum(o.sec) && isNum(a.sec) && o.sec > 0 ? ` (<b>${Math.round((1 - a.sec / o.sec) * 100)}%</b> 줄어듦)` : ''
+  $('summary').innerHTML = `
+    <p><b>${people.length}명</b> · 평균 기존 <b>${fmt(o.sec)}</b> → Unimate <b>${fmt(a.sec)}</b>${cut}</p>
+    <p>정답률(마감·방법 모두) 기존 ${o.ok}/${o.n} · Unimate ${a.ok}/${a.n} · 불안도 평균 ${one(o.anx)} → ${one(a.anx)}</p>
+    <p>에타를 거의 안 쓰거나 설치 안 함: ${eta}/${people.length}명</p>`
+}
+
+// ---------- CSV ----------
+// 모든 칸을 따옴표로 감싸고 " 는 "" 로, 줄바꿈은 공백으로, 문자열이 = + - @ 탭 CR 로 시작하면 ' 를 붙여 수식 실행을 막는다
+function csvCell(v) {
+  let s = v == null ? '' : String(v)
+  if (typeof v === 'string') {
+    s = s.replace(/\r\n|\r|\n/g, ' ')
+    if (/^[=+\-@\t]/.test(s)) s = `'${s}`
+  }
+  return `"${s.replace(/"/g, '""')}"`
+}
+function toCsv() {
+  const head = ['participant', 'lang', 'eta', 'sources', 'date', 'place', 'notice', 'method', 'seconds', 'deadline_ok', 'method_ok', 'anxiety']
+  const lines = people.flatMap(p => p.trials.map(t =>
+    [p.code, p.lang, p.eta, p.sources.join('|'), p.date, p.place, t.notice, t.method, t.seconds, t.deadlineOk, t.methodOk, t.anxiety].map(csvCell).join(',')))
+  return '﻿' + [head.map(csvCell).join(','), ...lines].join('\r\n') + '\r\n'
+}
+function downloadCsv() {
+  if (!people.length) { say('resMsg', '저장할 기록이 없습니다'); return }
+  const url = URL.createObjectURL(new Blob([toCsv()], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = 'results.csv'; a.hidden = true
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
+  say('resMsg', `results.csv 저장을 요청했습니다 (${people.length}명)`, true)
+}
+
+function undoLast() {
+  if (cur) { say('resMsg', '측정 중에는 지울 수 없습니다. 먼저 이번 측정을 끝내세요'); return }
+  if (!people.length) { say('resMsg', '지울 기록이 없습니다'); return }
+  if (!confirm(`${people.at(-1).code} 기록을 지울까요?`)) return
+  people.pop(); store.set(KEY_PEOPLE, people)
+  renderSetup(); renderResults(); say('resMsg', '')
+}
+
+// ---------- 설정 ----------
+function renderCfg() {
+  $('appUrl').value = cfg.appUrl
+  $('noticeForm').innerHTML = cfg.notices.map((n, i) => `
+    <label for="cfg-title-${i}">공지 ${esc(n.key)} 제목</label><input id="cfg-title-${i}" data-i="${i}" data-f="title" value="${esc(n.title)}">
+    <div class="row"><div><label for="cfg-board-${i}">게시판</label><select id="cfg-board-${i}" data-i="${i}" data-f="board"><option value="academic"${n.board === 'academic' ? ' selected' : ''}>학사공지</option><option value="general"${n.board === 'general' ? ' selected' : ''}>일반공지</option></select></div>
+    <div><label for="cfg-url-${i}">원문 주소</label><input id="cfg-url-${i}" type="url" inputmode="url" data-i="${i}" data-f="url" value="${esc(n.url)}"></div></div>
+    <label for="cfg-answer-${i}">정답(원문 기준)</label><input id="cfg-answer-${i}" data-i="${i}" data-f="answer" value="${esc(n.answer)}">`).join('')
+}
+function saveCfg() {
+  const appUrl = $('appUrl').value.trim()
+  if (!isHttpUrl(appUrl)) { say('cfgMsg', 'Unimate 주소는 http:// 또는 https:// 로 시작해야 합니다'); return }
+  const notices = []
+  for (let i = 0; i < cfg.notices.length; i++) {
+    const n = { ...cfg.notices[i] }
+    document.querySelectorAll(`#noticeForm [data-i="${i}"]`).forEach(el => { n[el.dataset.f] = el.value.trim() })
+    if (!n.title || !n.answer) { say('cfgMsg', `공지 ${n.key}의 제목과 정답을 입력해 주세요`); return }
+    if (!isHttpUrl(n.url)) { say('cfgMsg', `공지 ${n.key}의 원문 주소가 올바르지 않습니다`); return }
+    if (n.board !== 'academic' && n.board !== 'general') { say('cfgMsg', `공지 ${n.key}의 게시판을 고르세요`); return }
+    notices.push(n)
+  }
+  cfg = { appUrl, notices }
+  store.set(KEY_CFG, cfg); say('cfgMsg', '저장했습니다. 다음 시도부터 적용됩니다', true)
+}
+function resetCfg() {
+  cfg = clone(DEFAULT_CFG); store.set(KEY_CFG, cfg); renderCfg(); say('cfgMsg', '기본값으로 되돌렸습니다', true)
+}
+
+// ---------- 연결 ----------
+$('begin').addEventListener('click', startPerson)
+$('startBtn').addEventListener('click', start)
+$('stopBtn').addEventListener('click', stop)
+$('saveTrial').addEventListener('click', saveTrial)
+$('redo').addEventListener('click', () => { if (cur) { renderTrial(); $('startBtn').focus() } })
+$('csv').addEventListener('click', downloadCsv)
+$('undo').addEventListener('click', undoLast)
+$('saveCfg').addEventListener('click', saveCfg)
+$('resetCfg').addEventListener('click', resetCfg)
+window.addEventListener('beforeunload', e => { if (cur) { e.preventDefault(); e.returnValue = '' } })
+
+renderSetup(); renderResults(); renderCfg(); showStorageWarning()
+</script>
+</body>
+</html>
