@@ -1,4 +1,4 @@
-// 프로필 수정: 프로필 그림, 닉네임, 학과·학번, 국적, 사용 언어 (라벨은 입력칸 위, 저장은 아래 큰 버튼)
+// 프로필 수정: 프로필 그림, 닉네임, 학과·학번, 국적, 사용 언어 (라벨은 입력칸 위, 저장은 아래 큰 버튼). 고치는 대로 위 미리보기가 바로 바뀐다
 import { updateMe } from '@/app/auth-actions'
 import Avatar, { AVATAR_COUNT } from '@/components/Avatar'
 import PhotoPicker from '@/components/PhotoPicker'
@@ -20,7 +20,8 @@ export default async function EditProfilePage() {
       <fieldset className="rise card mx-3 p-5">
         <legend className="sr-only">{t(lang, 'profilePhoto')}</legend>
         <p className="text-[14px] font-semibold text-muted" aria-hidden>{t(lang, 'profilePhoto')}</p>
-        <PhotoPicker lang={lang} current={me.photo ?? null} avatar={avatar} />
+        <PhotoPicker lang={lang} current={me.photo ?? null} avatar={avatar} campus={t(lang, 'campus')}
+          profile={{ nickname: me.nickname, nationality: me.nationality, major: me.major ?? '', year: me.year ?? '' }} />
         <p className="mt-5 text-[13px] text-muted" id="avatar-pick">{t(lang, 'orPickColor')}</p>
         <div role="radiogroup" aria-labelledby="avatar-pick" className="mt-2 grid grid-cols-4 gap-2">
           {Array.from({ length: AVATAR_COUNT }, (_, i) => (

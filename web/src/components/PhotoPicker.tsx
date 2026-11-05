@@ -1,9 +1,10 @@
 'use client'
-// 프로필 사진 고르기: 휴대폰에서 가운데를 정사각형으로 잘라 400px JPEG로 줄인 뒤 폼의 photo 입력에 담는다
+// 프로필 사진 고르기: 휴대폰에서 가운데를 정사각형으로 잘라 400px JPEG로 줄인 뒤 폼의 photo 입력에 담는다.
+// 같은 폼의 그림 색·닉네임·국적·학과·학번을 고치면 저장 전에도 위 미리보기에 바로 보인다
 import { Camera, Trash } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import Avatar from '@/components/Avatar'
-import { btn } from '@/components/ui'
+import { Flag, btn } from '@/components/ui'
 import { t, type Lang } from '@/lib/i18n'
 
 const SIDE = 400
@@ -24,8 +25,24 @@ async function square(file: File): Promise<File> {
   }
 }
 
-export default function PhotoPicker({ lang, current, avatar }: { lang: Lang; current: string | null; avatar: number }) {
+type Live = { avatar: number; nickname: string; nationality: string; major: string; year: string }
+
+export default function PhotoPicker({ lang, current, avatar, profile, campus }: { lang: Lang; current: string | null; avatar: number; profile?: Omit<Live, 'avatar'>; campus?: string }) {
   const input = useRef<HTMLInputElement>(null)
+  const [live, setLive] = useState<Live>({ avatar, nickname: profile?.nickname ?? '', nationality: profile?.nationality ?? '', major: profile?.major ?? '', year: profile?.year ?? '' })
+  // 폼의 다른 입력을 고칠 때마다 미리보기를 바꾼다(그림 색·닉네임·국적·학과·학번)
+  useEffect(() => {
+    const form = input.current?.form
+    if (!form) return
+    const read = () => {
+      const d = new FormData(form)
+      const s = (k: string, prev: string) => { const v = d.get(k); return typeof v === 'string' ? v : prev }
+      setLive(p => ({ avatar: Number(s('avatar', String(p.avatar))) || 0, nickname: s('nickname', p.nickname), nationality: s('nationality', p.nationality), major: s('major', p.major), year: s('year', p.year) }))
+    }
+    form.addEventListener('input', read)
+    form.addEventListener('change', read)
+    return () => { form.removeEventListener('input', read); form.removeEventListener('change', read) }
+  }, [])
   const [preview, setPreview] = useState<string | null>(null)
   const [removed, setRemoved] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -66,8 +83,14 @@ export default function PhotoPicker({ lang, current, avatar }: { lang: Lang; cur
       {preview && !removed
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={preview} alt="" className="h-20 w-20 shrink-0 rounded-[30%] object-cover" />
-        : <Avatar n={avatar} photo={removed ? null : current} size={80} />}
-      <div className="flex flex-1 flex-col gap-2" aria-busy={busy}>
+        : <Avatar n={live.avatar} photo={removed ? null : current} size={80} />}
+      <div className="flex min-w-0 flex-1 flex-col gap-2" aria-busy={busy}>
+        {profile && (
+          <div data-testid="profile-preview" aria-live="polite" className="min-w-0">
+            <p className="flex items-center gap-1.5 text-[18px] font-bold tracking-tight"><span className="truncate">{live.nickname.trim() || profile.nickname}</span><Flag code={live.nationality} size={13} /></p>
+            <p className="truncate text-[13px] text-muted">{[campus, live.major.trim(), live.year.trim()].filter(Boolean).join(' · ')}</p>
+          </div>
+        )}
         <label className={`${btn.smallPrimary} cursor-pointer focus-within:ring-2 focus-within:ring-navy/20`}>
           <Camera size={16} weight="bold" aria-hidden />{t(lang, 'choosePhoto')}
           <input type="file" accept="image/*" className="sr-only"

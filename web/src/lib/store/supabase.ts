@@ -186,6 +186,9 @@ export function createSupabaseStore(client?: SupabaseClient): Store {
       must(await db.from('comments').delete().eq('postId', id))
       must(await db.from('posts').delete().eq('id', id))
     },
+    async updatePost(id, patch) {
+      must(await db.from('posts').update({ title: patch.title, body: patch.body, lang: patch.lang, tr: {} }).eq('id', id))
+    },
     async setTr(kind, id, tr, detected) { must(await db.from(TABLE[kind]).update({ tr, lang: detected }).eq('id', id)) },
     // 공감·스크랩은 Postgres 함수(UPDATE 한 번)로 바꿔 같은 순간 두 번 눌러도 빠지지 않는다. 함수가 아직 없는 DB면 읽고-고쳐-쓰기로
     async toggleLike(kind, id, userId) {
@@ -390,6 +393,16 @@ export function createSupabaseStore(client?: SupabaseClient): Store {
       const row: Board = { id: randomUUID(), name: b.name, desc: b.desc, lang: b.lang, ownerId: b.ownerId, tr: {}, createdAt: now() }
       must(await db.from('boards').insert(row))
       return row
+    },
+    async deleteBoard(id) {
+      // 글 id를 모아 댓글부터 지우고, 글, 게시판 순서로 지운다
+      const posts = rows<{ id: string }>(await db.from('posts').select('id').eq('board', id))
+      for (let i = 0; i < posts.length; i += 100) {
+        const ids = posts.slice(i, i + 100).map(p => p.id)
+        must(await db.from('comments').delete().in('postId', ids))
+      }
+      must(await db.from('posts').delete().eq('board', id))
+      must(await db.from('boards').delete().eq('id', id))
     },
   }
 }

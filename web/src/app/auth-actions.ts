@@ -1,6 +1,7 @@
 'use server'
 // 가입·로그인·로그아웃·내 정보 변경 서버 액션(입력은 zod로 검사, 로그인·가입 시도는 횟수 제한)
 import { randomUUID } from 'node:crypto'
+import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -135,6 +136,8 @@ export async function updateMe(f: FormData) {
     if (type) patch.photo = await store.saveImage(bytes, type, me.id)
   }
   await store.updateProfile(me.id, patch)
+  // 홈·게시판·친구 등 브라우저에 남은 화면을 모두 버려서, 어느 화면으로 가도 바뀐 프로필이 바로 보이게 한다
+  revalidatePath('/', 'layout')
   redirect('/me')
 }
 

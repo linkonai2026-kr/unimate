@@ -107,6 +107,9 @@ export function Sheet({ close, closeLabel = 'Close', children }: { close: string
   )
 }
 
+/** 메뉴 한 줄 모양(··· 메뉴 안 링크·버튼 공통) */
+export const menuItem = 'flex min-h-12 w-full items-center gap-2.5 px-4 text-left text-[15px] font-medium hover:bg-bg-soft focus-visible:bg-bg-soft focus-visible:outline-none'
+
 /** 화면 맨 아래에 붙는 주요 버튼 자리(하단 탭 위) */
 export function BottomCTA({ children }: { children: ReactNode }) {
   // 위쪽 흐림 띠는 손가락을 가로채지 않게(그 아래 글·버튼이 눌리도록)

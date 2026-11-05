@@ -1,5 +1,5 @@
-// 게시판 탭: 내 활동(쓴 글·댓글·스크랩), HOT·BEST, 전체 게시판(핀으로 홈 고정), 학생들이 만든 게시판, 게시판 만들기
-import { BookmarkSimple, ChatCircleText, Fire, NotePencil, Plus, PushPin, Trophy, UsersThree } from '@phosphor-icons/react/dist/ssr'
+// 게시판 탭: 내 활동(쓴 글·댓글·스크랩), HOT·BEST, 전체 게시판(핀으로 홈 고정), 학생들이 만든 게시판, 게시판 만들기, 아래 가운데 떠 있는 글쓰기 버튼(게시판 고르기로)
+import { BookmarkSimple, ChatCircleText, Fire, NotePencil, PencilSimple, Plus, PushPin, Trophy, UsersThree } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import { togglePinBoard } from '@/app/board-actions'
 import { IconBox, Row, Section, btn } from '@/components/ui'
@@ -36,7 +36,7 @@ export default async function BoardsPage() {
   const pins = new Set(pinsOf(me))
   const custom = boards.filter(b => b.custom)
   return (
-    <div className="space-y-3 pb-6 pt-1">
+    <div className="space-y-3 pb-20 pt-1">
       <Section>
         <div className="grid grid-cols-3 gap-1 px-2 py-4">
           {ACTIVITY.map(([href, key, Icon, tone]) => (
@@ -60,6 +60,9 @@ export default async function BoardsPage() {
         {custom.length > 0 && <ul>{custom.map(b => <BoardRow key={b.id} b={b} pinned={pins.has(b.id)} lang={lang} />)}</ul>}
         <div className="px-5 pb-5 pt-2"><Link href="/boards/new" className={btn.soft}><Plus size={18} weight="bold" aria-hidden />{t(lang, 'createBoard')}</Link></div>
       </Section>
+      <Link href="/write" className="press fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 z-10 flex h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-navy px-6 text-[15px] font-bold text-white shadow-[0_8px_24px_-6px_rgba(1,29,72,.45)]">
+        <PencilSimple size={18} weight="bold" aria-hidden />{t(lang, 'write')}
+      </Link>
     </div>
   )
 }

@@ -159,6 +159,15 @@ describe('사용자 게시판·고정', () => {
     await s.setTr('board', b.id, { vi: { name: 'Nhóm học lập trình', desc: 'Cùng học nhé' } }, 'ko')
     expect((await s.listBoards()).find(x => x.id === b.id)?.tr.vi?.name).toBe('Nhóm học lập trình')
   })
+  it('게시판을 지우면 그 안의 글·댓글도 지워진다', async () => {
+    const b = await s.createBoard({ name: `지울 게시판 ${u1}`, desc: '', lang: 'ko', ownerId: u1 })
+    const p = await s.createPost({ board: b.id, authorId: u1, anonymous: true, title: '제목', body: '본문', lang: 'ko' })
+    const c = await s.createComment({ postId: p.id, authorId: u1, anonymous: true, body: '댓글', lang: 'ko', parentId: null })
+    await s.deleteBoard(b.id)
+    expect((await s.listBoards()).some(x => x.id === b.id)).toBe(false)
+    expect(await s.getPost(p.id)).toBeNull()
+    expect(await s.getComment(c.id)).toBeNull()
+  })
   it('고정한 게시판 목록을 프로필에 저장한다', async () => {
     const p = await s.createProfile({ handle: `pin${u1}`, nickname: 'P', nationality: 'KR', lang: 'ko', passHash: '' })
     await s.updateProfile(p.id, { pins: ['free', 'market'] })
@@ -179,6 +188,15 @@ describe('사진', () => {
     const p = await s.createPost(newPost({ images: ['a', 'b'] }))
     expect((await s.getPost(p.id))?.images).toEqual(['a', 'b'])
     expect((await s.getPost((await s.createPost(newPost())).id))?.images).toEqual([])
+  })
+  it('글을 고치면 제목·본문·언어가 바뀌고 옛 번역은 비워진다', async () => {
+    const p = await s.createPost(newPost({ images: ['a'] }))
+    await s.setTr('post', p.id, { en: { title: 'T', body: 'B' } }, 'ko')
+    await s.updatePost(p.id, { title: '새 제목', body: '새 본문', lang: 'vi' })
+    const got = await s.getPost(p.id)
+    expect([got?.title, got?.body, got?.lang]).toEqual(['새 제목', '새 본문', 'vi'])
+    expect(got?.tr).toEqual({})
+    expect(got?.images).toEqual(['a'])
   })
 })
 

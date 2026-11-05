@@ -1,12 +1,13 @@
-// 글 상세: 작성자, 번역된 본문·사진, 공감·스크랩, 익명 번호 댓글·대댓글, 아래 고정 댓글 입력, 글·댓글 신고 시트. 가려진 글·댓글은 안내 문구만
-import { ArrowBendDownRight, BookmarkSimple, ChatCircle, CheckCircle, EyeSlash, Heart as HeartIcon, Info, PaperPlaneRight, PaperPlaneTilt, Siren, Trash } from '@phosphor-icons/react/dist/ssr'
+// 글 상세: 작성자(··· 메뉴: 수정·삭제·쪽지·신고), 번역된 본문·사진, 공감·스크랩, 익명 번호 댓글·대댓글, 아래 고정 댓글 입력, 글·댓글 신고 시트. 가려진 글·댓글은 안내 문구만
+import { ArrowBendDownRight, BookmarkSimple, ChatCircle, CheckCircle, EyeSlash, Heart as HeartIcon, Info, PaperPlaneRight, PaperPlaneTilt, PencilSimple, Siren, Trash } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { like, removePost, reportContent, scrap, submitComment, type ReportResult } from '@/app/board-actions'
 import Avatar from '@/components/Avatar'
 import LiveRefresh from '@/components/LiveRefresh'
+import { ConfirmButton, MoreMenu } from '@/components/MoreMenu'
 import TrText from '@/components/TrText'
-import { Flag, SanctionBanner, Sheet, btn } from '@/components/ui'
+import { Flag, SanctionBanner, Sheet, btn, menuItem } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { loadBoards } from '@/lib/board/list'
 import { anonNumbers, toCommentView, toPostView, type CommentView } from '@/lib/board/flow'
@@ -80,7 +81,8 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
     <div className="space-y-3 pb-40 pt-1">
       <LiveRefresh topics={[`post:${post.id}`]} />
       <ReportedNotice lang={lang} reported={reported} />
-      <article className="rise card mx-3 p-5">
+      {/* relative z-10: ··· 메뉴가 아래 댓글 카드 밑으로 숨지 않게 */}
+      <article className="rise card relative z-10 mx-3 p-5">
         <Link href={`/board/${encodeURIComponent(post.board)}`} className="text-[13px] font-semibold text-teal">{board?.name ?? post.board}</Link>
         <div className="mt-3 flex items-center gap-3">
           <Avatar n={p.avatar} photo={p.photo} size={40} />
@@ -88,12 +90,17 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
             <p className="flex items-center gap-1.5 text-[15px] font-bold"><Flag code={p.nation} size={12} /><span className="truncate">{p.author}</span></p>
             <p className="text-[13px] text-[#8b93a1]">{timeAgo(p.createdAt, lang)}</p>
           </div>
-        </div>
-        {/* 작성자 줄에 버튼까지 두면 좁은 화면에서 이름이 밀리므로 버튼은 한 줄 아래에 나란히 */}
-        <div className="mt-3 flex gap-2">
-          {mine && <form action={removePost.bind(null, post.id)} className="flex flex-1"><button className={`${btn.small} flex-1`}><Trash size={16} aria-hidden />{t(lang, 'delete')}</button></form>}
-          {!mine && !post.anonymous && author && <Link href={`/messages/${encodeURIComponent(author.handle)}`} className={`${btn.small} flex-1`}><PaperPlaneTilt size={16} aria-hidden />{t(lang, 'messages')}</Link>}
-          {!mine && <Link href={`${self}?report=post`} scroll={false} className={`${btn.small} flex-1`}><Siren size={16} aria-hidden />{t(lang, 'report')}</Link>}
+          {/* 수정·삭제(내 글), 쪽지·신고(남의 글)를 "···" 하나에 모은다 */}
+          <MoreMenu label={t(lang, 'postMenu')}>
+            {mine && <Link role="menuitem" href={`${self}/edit`} className={menuItem}><PencilSimple size={18} aria-hidden />{t(lang, 'edit')}</Link>}
+            {mine && (
+              <form action={removePost.bind(null, post.id)}>
+                <ConfirmButton message={t(lang, 'deletePostHint')} className={`${menuItem} text-danger`}><Trash size={18} aria-hidden />{t(lang, 'delete')}</ConfirmButton>
+              </form>
+            )}
+            {!mine && !post.anonymous && author && <Link role="menuitem" href={`/messages/${encodeURIComponent(author.handle)}`} className={menuItem}><PaperPlaneTilt size={18} aria-hidden />{t(lang, 'messages')}</Link>}
+            {!mine && <Link role="menuitem" href={`${self}?report=post`} scroll={false} className={`${menuItem} text-danger`}><Siren size={18} aria-hidden />{t(lang, 'report')}</Link>}
+          </MoreMenu>
         </div>
         <h1 className="mt-5 text-[22px] font-bold leading-snug tracking-tight">{p.title}</h1>
         <div className="mt-3 text-[16px] leading-relaxed">

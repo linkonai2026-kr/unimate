@@ -1,5 +1,5 @@
 'use server'
-// 게시판 서버 액션: 글·댓글 작성, 공감, 스크랩, 삭제, 신고, 게시판 고정·만들기
+// 게시판 서버 액션: 글·댓글 작성, 글 수정, 공감, 스크랩, 삭제, 신고, 게시판 고정·만들기·삭제
 import { refresh } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -135,8 +135,44 @@ export async function removePost(postId: string) {
   redirect(`/board/${post.board}`)
 }
 
+/** 글 수정: 쓴 사람만. 제목·본문을 바꾸고 다시 번역·검수한다(사진은 그대로) */
+export async function editPost(postId: string, f: FormData) {
+  const me = await requireUser()
+  if (blockedBySanction(me)) return
+  const id = Id.safeParse(postId)
+  if (!id.success) return
+  const store = getStore()
+  const post = await store.getPost(id.data)
+  if (!post || post.authorId !== me.id || post.hidden) return
+  const title = cleanInput(f.get('title'), LIMITS.title), body = cleanInput(f.get('body'), LIMITS.body, true)
+  if (!title || !body || !postLimit(me.id)) return
+  await store.updatePost(post.id, { title, body, lang: me.lang })
+  const topics = [`board:${post.board}`, 'board:all', `post:${post.id}`]
+  // 화면을 보고 있는 사람에게 바뀐 글을 바로 다시 그리게 한다(번역이 붙을 때와 같은 신호)
+  for (const topic of topics) await publish({ topic, kind: 'tr', id: post.id })
+  translateLater(flowDeps(), 'post', post.id, { title, body }, topics, undefined, me.lang)
+  moderateLater(flowDeps(), 'post', post.id)
+  redirect(`/post/${post.id}`)
+}
+
+/** 게시판 삭제: 학생이 만든 게시판을 만든 사람만. 안의 글·댓글도 함께 지운다 */
+export async function removeBoard(boardId: string) {
+  const me = await requireUser()
+  const id = Id.safeParse(boardId)
+  if (!id.success) return
+  const store = getStore()
+  const board = (await store.listBoards()).find(b => b.id === id.data)
+  if (!board || board.ownerId !== me.id) return
+  await store.deleteBoard(board.id)
+  for (const topic of [`board:${board.id}`, 'board:all']) await publish({ topic, kind: 'del', id: board.id })
+  // 내 고정 목록에서도 뺀다(다른 사람 목록의 옛 id는 화면이 없는 게시판으로 걸러 낸다)
+  const pins = pinsOf(me)
+  if (pins.includes(board.id)) await store.updateProfile(me.id, { pins: pins.filter(p => p !== board.id) })
+  redirect('/boards')
+}
+
 /**
- * 글·댓글 신고: 내 글·댓글은 안 되고, 같은 글·댓글은 한 번만(사람당 횟수 제한). 받은 뒤 응답 뒤에 AI가 검수해
+ * 글·댓글 신고:내 글·댓글은 안 되고, 같은 글·댓글은 한 번만(사람당 횟수 제한). 받은 뒤 응답 뒤에 AI가 검수해
  * 위반이면 가리고 작성자에게 경고·이용 제한. 결과는 글 화면 ?reported= 로 알린다
  */
 export async function reportContent(kind: 'post' | 'comment', targetId: string, f: FormData) {

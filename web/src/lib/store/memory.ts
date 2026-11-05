@@ -137,6 +137,10 @@ export function createMemoryStore(seed = true): Store {
       d.posts = d.posts.filter(p => p.id !== id)
       d.comments = d.comments.filter(c => c.postId !== id)
     },
+    async updatePost(id, patch) {
+      const row = d.posts.find(p => p.id === id)
+      if (row) Object.assign(row, { title: patch.title, body: patch.body, lang: patch.lang, tr: {} })
+    },
     async setTr(kind, id, tr, detected) {
       const row = rowsOf(kind).find(x => x.id === id)
       if (row) Object.assign(row, { tr: copy(tr), lang: detected })
@@ -302,6 +306,12 @@ export function createMemoryStore(seed = true): Store {
       const row: Board = { id: randomUUID(), name: b.name, desc: b.desc, lang: b.lang, ownerId: b.ownerId, tr: {}, createdAt: now() }
       d.boards.push(row)
       return copy(row)
+    },
+    async deleteBoard(id) {
+      const gone = new Set(d.posts.filter(p => p.board === id).map(p => p.id))
+      d.comments = d.comments.filter(c => !gone.has(c.postId))
+      d.posts = d.posts.filter(p => p.board !== id)
+      d.boards = d.boards.filter(b => b.id !== id)
     },
   }
 }

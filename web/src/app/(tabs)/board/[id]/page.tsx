@@ -1,10 +1,12 @@
-// 게시판 글 목록(HOT·BEST 가상 게시판 포함), 아래 가운데 떠 있는 글쓰기 버튼
-import { NotePencil, PencilSimple } from '@phosphor-icons/react/dist/ssr'
+// 게시판 글 목록(HOT·BEST 가상 게시판 포함), 아래 가운데 떠 있는 글쓰기 버튼. 학생이 만든 게시판은 만든 사람에게 ··· 메뉴(게시판 삭제)
+import { NotePencil, PencilSimple, Trash } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { removeBoard } from '@/app/board-actions'
 import LiveRefresh from '@/components/LiveRefresh'
+import { ConfirmButton, MoreMenu } from '@/components/MoreMenu'
 import PostCard from '@/components/PostCard'
-import { Empty } from '@/components/ui'
+import { Empty, menuItem } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { VIRTUAL, isVirtual } from '@/lib/boards'
 import { loadBoards } from '@/lib/board/list'
@@ -26,9 +28,19 @@ export default async function BoardPage({ params }: PageProps<'/board/[id]'>) {
   return (
     <div className="pb-20">
       <LiveRefresh topics={[real ? `board:${real.id}` : 'board:all']} />
-      <div className="rise px-5 pb-4 pt-2">
-        <h2 className="text-[24px] font-bold tracking-tight">{head.name}</h2>
-        {head.desc && <p className="mt-1 text-[14px] text-muted">{head.desc}</p>}
+      {/* relative z-20: ··· 메뉴가 아래 글 목록 카드 밑으로 숨지 않게 */}
+      <div className="rise relative z-20 flex items-start gap-2 px-5 pb-4 pt-2">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[24px] font-bold tracking-tight">{head.name}</h2>
+          {head.desc && <p className="mt-1 text-[14px] text-muted">{head.desc}</p>}
+        </div>
+        {real?.custom && real.ownerId === me.id && (
+          <MoreMenu label={t(lang, 'boardMenu')}>
+            <form action={removeBoard.bind(null, real.id)}>
+              <ConfirmButton message={t(lang, 'deleteBoardHint')} className={`${menuItem} text-danger`}><Trash size={18} aria-hidden />{t(lang, 'deleteBoard')}</ConfirmButton>
+            </form>
+          </MoreMenu>
+        )}
       </div>
       <div className="rise card mx-3 divide-y divide-line/70 overflow-hidden">
         {views.length === 0

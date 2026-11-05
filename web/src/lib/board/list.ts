@@ -5,7 +5,7 @@ import { pickText } from '../text'
 import type { Store } from '../store/types'
 import type { Board, Profile } from '../types'
 
-export type BoardView = { id: string; name: string; desc: string; anonOnly?: boolean; custom?: boolean }
+export type BoardView = { id: string; name: string; desc: string; anonOnly?: boolean; custom?: boolean; /** 학생이 만든 게시판을 만든 사람 */ ownerId?: string }
 
 /** 고정을 한 번도 안 바꾼 사람은 기본 게시판 전부가 고정된 상태 */
 export const DEFAULT_PINS: readonly string[] = BOARDS.map(b => b.id)
@@ -15,7 +15,7 @@ export const togglePin = (pins: string[], id: string) => (pins.includes(id) ? pi
 export function mergeBoards(custom: Board[], lang: Lang): BoardView[] {
   return [
     ...BOARDS.map(b => ({ id: b.id, name: b.name[lang], desc: b.desc[lang], ...('anonOnly' in b && b.anonOnly ? { anonOnly: true } : {}) })),
-    ...custom.map(b => ({ id: b.id, name: pickText(b, 'name', b.name, lang).text, desc: pickText(b, 'desc', b.desc, lang).text, custom: true })),
+    ...custom.map(b => ({ id: b.id, name: pickText(b, 'name', b.name, lang).text, desc: pickText(b, 'desc', b.desc, lang).text, custom: true, ownerId: b.ownerId })),
   ]
 }
 

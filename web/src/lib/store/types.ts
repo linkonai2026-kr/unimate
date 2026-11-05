@@ -70,6 +70,8 @@ export const clampLimit = (n: number | undefined) =>
 export interface Store {
   listBoards(): Promise<Board[]>
   createBoard(b: NewBoard): Promise<Board>
+  /** 게시판과 그 안의 글·댓글을 모두 지운다 */
+  deleteBoard(id: string): Promise<void>
   getProfile(id: string): Promise<Profile | null>
   getProfileByHandle(handle: string): Promise<Profile | null>
   listProfiles(): Promise<Profile[]>
@@ -81,6 +83,8 @@ export interface Store {
   getPost(id: string): Promise<Post | null>
   createPost(p: NewPost): Promise<Post>
   deletePost(id: string): Promise<void>
+  /** 글 수정: 제목·본문·언어를 바꾸고 옛 번역을 비운다(다시 번역한다) */
+  updatePost(id: string, patch: Pick<Post, 'title' | 'body' | 'lang'>): Promise<void>
   setTr(kind: TrKind, id: string, tr: TrMap, detected: Lang): Promise<void>
   toggleLike(kind: 'post' | 'comment', id: string, userId: string): Promise<number>
   toggleScrap(postId: string, userId: string): Promise<boolean>
