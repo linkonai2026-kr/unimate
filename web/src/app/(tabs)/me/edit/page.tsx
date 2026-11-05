@@ -5,7 +5,7 @@ import PhotoPicker from '@/components/PhotoPicker'
 import { BottomCTA, btn, field } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { LANGS, t } from '@/lib/i18n'
-import { NATIONS, nationName } from '@/lib/nations'
+import { NATIONS, nationLabel } from '@/lib/nations'
 import { isDemoAccount } from '@/lib/profile'
 
 const label = 'block space-y-2 text-[14px] font-semibold text-muted'
@@ -39,7 +39,7 @@ export default async function EditProfilePage() {
         </div>
         {/* 데모 계정은 국적·사용 언어가 고정이라 잠가 둔다(서버도 바꾸지 않는다) */}
         <label className={label}>{t(lang, 'nationality')}
-          <select name="nationality" defaultValue={me.nationality} disabled={locked} className={`${field} disabled:opacity-60`}>{NATIONS.map(n => <option key={n} value={n}>{nationName(n, lang)}</option>)}</select>
+          <select name="nationality" defaultValue={me.nationality} disabled={locked} className={`${field} disabled:opacity-60`}>{NATIONS.map(n => <option key={n} value={n}>{nationLabel(n, lang)}</option>)}</select>
         </label>
         <label className={label}>{t(lang, 'language')}
           <select name="lang" defaultValue={lang} disabled={locked} className={`${field} disabled:opacity-60`}>{LANGS.map(l => <option key={l.code} value={l.code} lang={l.code}>{l.label}</option>)}</select>

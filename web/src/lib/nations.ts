@@ -28,6 +28,9 @@ const NAMES: Record<Nation, Record<'ko' | 'en' | 'vi' | 'zh' | 'uz', string>> = 
   XX: { ko: '기타', en: 'Other', vi: 'Khác', zh: '其他', uz: 'Boshqa' },
 }
 
+/** 국적 고르기 칸의 글자: 국기 이모지 + 사용자 언어 이름(예: "🇻🇳 Việt Nam") */
+export const nationLabel = (code: string, lang: string) => `${flag(code)} ${nationName(code, lang)}`
+
 /** 국가 코드를 사용자 언어 이름으로. 표에 없는 코드는 내장 Intl, 그것도 안 되면 코드 그대로 */
 export function nationName(code: string, lang: string): string {
   if (isNation(code)) return NAMES[code][lang as keyof (typeof NAMES)[Nation]] ?? NAMES[code].en
