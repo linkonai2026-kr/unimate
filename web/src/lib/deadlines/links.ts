@@ -34,3 +34,20 @@ export function officeRouteHref(where: string | null | undefined, mode: 'student
   if (o.room) q.set('room', o.room)
   return `/map?${q}`
 }
+
+/**
+ * 공지 본문에 실제로 적힌 메일 주소만(지어낸 주소로 보내지 않게). 학교 주소(kangwon.ac.kr)를 앞에, 같은 주소는 한 번
+ */
+export function noticeEmails(body: string): string[] {
+  const found = body.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g) ?? []
+  const uniq = [...new Set(found.map(e => e.replace(/[.]+$/, '').toLowerCase()))]
+  return uniq.sort((a, b) => Number(b.endsWith('kangwon.ac.kr')) - Number(a.endsWith('kangwon.ac.kr'))).slice(0, 5)
+}
+
+/** 메일 앱을 제목·본문이 채워진 채로 여는 주소. 받는 사람이 없으면 비워 둔다(메일 앱에서 직접 넣는다) */
+export function mailtoHref(to: string, subject: string, body: string): string {
+  const addr = /^[^\s@,;?&]+@[^\s@,;?&]+$/.test(to.trim()) ? to.trim() : ''
+  // 줄바꿈은 CRLF로(RFC 6068). +는 공백으로 읽는 메일 앱이 있어 %20을 쓰는 encodeURIComponent로
+  const q = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`
+  return `mailto:${addr}?${q}`
+}

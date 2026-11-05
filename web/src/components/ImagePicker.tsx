@@ -71,7 +71,10 @@ export default function ImagePicker({ lang }: { lang: Lang }) {
           <div key={f.url} className="relative h-20 w-20 overflow-hidden rounded-2xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={f.url} alt="" className="h-full w-full object-cover" />
-            <button type="button" aria-label={t(lang, 'delete')} onClick={() => remove(f.url)} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white"><X size={14} weight="bold" aria-hidden /></button>
+            {/* 누르는 영역은 40px, 보이는 동그라미는 24px(손가락으로 쉽게 누르게) */}
+            <button type="button" aria-label={t(lang, 'delete')} onClick={() => remove(f.url)} className="absolute right-0 top-0 flex h-10 w-10 items-center justify-center">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink/70 text-white"><X size={14} weight="bold" aria-hidden /></span>
+            </button>
           </div>
         ))}
         {files.length < MAX_IMAGES && (
@@ -82,7 +85,7 @@ export default function ImagePicker({ lang }: { lang: Lang }) {
           </label>
         )}
       </div>
-      <p className="text-[12px] text-[#8b93a1]">{t(lang, 'maxPhotos', { n: String(MAX_IMAGES) })}</p>
+      <p className="text-[12px] text-muted">{t(lang, 'maxPhotos', { n: String(MAX_IMAGES) })}</p>
     </div>
   )
 }

@@ -22,10 +22,10 @@ export default function FriendButton({ handle, rel, lang, size = 'icon' }: { han
   )
   if (rel === 'sent') return size === 'big'
     ? <span role="status" className={`${btn.soft} h-14 text-muted`}>{t(lang, 'requestSent')}</span>
-    : <span role="status" className="inline-flex h-9 shrink-0 items-center rounded-xl bg-bg-soft px-3 text-[13px] font-semibold text-muted">{t(lang, 'requestSent')}</span>
+    : <span role="status" className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-xl bg-bg-soft px-3 text-[13px] font-semibold text-muted">{t(lang, 'requestSent')}</span>
   return (
     <form action={requestFriendByHandle.bind(null, handle)}>
-      {size === 'icon' && <button aria-label={t(lang, 'addFriend')} className="press flex h-10 w-10 items-center justify-center rounded-xl bg-teal text-white"><Plus size={20} weight="bold" aria-hidden /></button>}
+      {size === 'icon' && <button aria-label={t(lang, 'addFriend')} className="press flex h-11 w-11 items-center justify-center rounded-xl bg-teal text-white"><Plus size={20} weight="bold" aria-hidden /></button>}
       {size === 'small' && <button className={btn.smallPrimary}>{t(lang, 'addFriend')}</button>}
       {size === 'big' && <button className={btn.primary}><UserPlus size={20} weight="bold" aria-hidden />{t(lang, 'addFriend')}</button>}
     </form>

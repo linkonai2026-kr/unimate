@@ -40,7 +40,8 @@ export default async function AddCoursePage({ searchParams }: PageProps<'/timeta
   const qs = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => typeof e[1] === 'string' && e[0] !== 't'))
   qs.set('t', table.id)
   const here = `/timetable/add?${qs}`
-  const chip = 'h-10 rounded-xl bg-bg-soft px-3 text-[14px] font-medium outline-none'
+  // 16px 글자: iOS가 셀렉트를 누를 때 화면을 확대하지 않게
+  const chip = 'h-11 w-full min-w-0 truncate rounded-xl bg-bg-soft px-2 text-[16px] font-medium outline-none'
 
   return (
     <div className="space-y-3 pb-6 pt-1">
@@ -48,15 +49,15 @@ export default async function AddCoursePage({ searchParams }: PageProps<'/timeta
         <input type="hidden" name="t" value={table.id} />
         <label className="relative block">
           <MagnifyingGlass size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-          <input name="q" type="search" defaultValue={f.q} maxLength={50} aria-label={t(lang, 'searchCourses')} placeholder={t(lang, 'searchCourses')} autoComplete="off" className={`${field} pl-11`} />
+          <input name="q" type="search" defaultValue={f.q} maxLength={50} aria-label={t(lang, 'searchCourses')} placeholder={t(lang, 'searchCourses')} autoComplete="off" enterKeyHint="search" className={`${field} pl-11`} />
         </label>
-        <div className="flex gap-1.5 overflow-x-auto">
+        <div className="grid grid-cols-3 gap-1.5">
           <select name="type" defaultValue={f.type} aria-label={t(lang, 'typeAll')} className={chip}><option value="">{t(lang, 'typeAll')}</option><option value="major">{t(lang, 'major')}</option><option value="general">{t(lang, 'general')}</option></select>
           <select name="credit" defaultValue={f.credit ?? ''} aria-label={t(lang, 'creditAll')} className={chip}><option value="">{t(lang, 'creditAll')}</option>{CREDITS.map(n => <option key={n} value={n}>{t(lang, 'creditsN', { n: String(n) })}</option>)}</select>
           <select name="day" defaultValue={f.day ?? ''} aria-label={t(lang, 'dayAll')} className={chip}><option value="">{t(lang, 'dayAll')}</option>{Array.from({ length: DAYS }, (_, d) => <option key={d} value={d}>{dayName(d, lang)}</option>)}</select>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <label className="flex items-center gap-2 text-[14px]"><input type="checkbox" name="hide" defaultChecked={f.hideClash} className="h-5 w-5 accent-[var(--teal)]" />{t(lang, 'hideClash')}</label>
+          <label className="flex min-h-11 items-center gap-2 py-2 text-[14px]"><input type="checkbox" name="hide" defaultChecked={f.hideClash} className="h-5 w-5 shrink-0 accent-[var(--teal)]" />{t(lang, 'hideClash')}</label>
           <button className={btn.smallPrimary}>{t(lang, 'search')}</button>
         </div>
       </form>
@@ -82,14 +83,14 @@ export default async function AddCoursePage({ searchParams }: PageProps<'/timeta
                   <p className="text-[13px] text-muted">{[...new Set(c.slots.map(s => `${dayName(s.day, lang)} ${fmtMin(s.start)}–${fmtMin(s.end)}`))].join(', ')}</p>
                   <p className="mt-1 flex items-center gap-2 text-[12px]">
                     {rs.count > 0 && <span className="inline-flex items-center gap-0.5 font-semibold text-[#b07f00]"><Star size={12} weight="fill" aria-hidden />{rs.avg} ({rs.count})</span>}
-                    <Link href={`/lectures/${encodeURIComponent(c.name)}`} className="inline-flex items-center gap-0.5 text-muted"><BookOpen size={12} aria-hidden />{t(lang, 'reviews')}</Link>
+                    <Link href={`/lectures/${encodeURIComponent(c.name)}`} className="-my-2 inline-flex min-h-11 items-center gap-0.5 px-1 text-[13px] text-muted"><BookOpen size={12} aria-hidden />{t(lang, 'reviews')}</Link>
                   </p>
                 </div>
                 {has
                   ? <form action={removeItem.bind(null, table.id, c.code, here)}><button className={btn.small}>{t(lang, 'remove')}</button></form>
                   : blocked
                     ? <span className="inline-flex items-center gap-1 rounded-xl bg-danger/10 px-2.5 py-2 text-[13px] font-semibold text-danger"><Prohibit size={14} weight="bold" aria-hidden />{t(lang, 'clashLabel')}</span>
-                    : <form action={addFromCatalog.bind(null, table.id, c.code, here)}><button className="press inline-flex h-9 items-center rounded-xl bg-teal px-3.5 text-[14px] font-bold text-white">{t(lang, 'add')}</button></form>}
+                    : <form action={addFromCatalog.bind(null, table.id, c.code, here)}><button className="press inline-flex min-h-11 items-center rounded-xl bg-teal px-3.5 text-[14px] font-bold text-white">{t(lang, 'add')}</button></form>}
               </li>
             )
           })}

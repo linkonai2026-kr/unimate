@@ -5,7 +5,7 @@ import PhotoPicker from '@/components/PhotoPicker'
 import { BottomCTA, btn, field } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { LANGS, t } from '@/lib/i18n'
-import { NATIONS, nationName } from '@/lib/nations'
+import { NATIONS, nationLabel } from '@/lib/nations'
 import { isDemoAccount } from '@/lib/profile'
 
 const label = 'block space-y-2 text-[14px] font-semibold text-muted'
@@ -22,7 +22,7 @@ export default async function EditProfilePage() {
         <p className="text-[14px] font-semibold text-muted" aria-hidden>{t(lang, 'profilePhoto')}</p>
         <PhotoPicker lang={lang} current={me.photo ?? null} avatar={avatar} />
         <p className="mt-5 text-[13px] text-muted" id="avatar-pick">{t(lang, 'orPickColor')}</p>
-        <div role="radiogroup" aria-labelledby="avatar-pick" className="mt-2 grid grid-cols-4 gap-3">
+        <div role="radiogroup" aria-labelledby="avatar-pick" className="mt-2 grid grid-cols-4 gap-2">
           {Array.from({ length: AVATAR_COUNT }, (_, i) => (
             <label key={i} className="press flex cursor-pointer justify-center rounded-[22px] p-1 ring-teal has-[:checked]:ring-[3px] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-navy">
               <input type="radio" name="avatar" value={i} defaultChecked={avatar === i} aria-label={`${t(lang, 'orPickColor')} ${i + 1}`} className="sr-only" />
@@ -35,11 +35,11 @@ export default async function EditProfilePage() {
         <label className={label}>{t(lang, 'nickname')}<input name="nickname" defaultValue={me.nickname} maxLength={20} required autoComplete="nickname" className={field} /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className={label}>{t(lang, 'majorLabel')}<input name="major" defaultValue={me.major ?? ''} maxLength={30} className={field} /></label>
-          <label className={label}>{t(lang, 'yearLabel')}<input name="year" defaultValue={me.year ?? ''} maxLength={10} placeholder="24" className={field} /></label>
+          <label className={label}>{t(lang, 'yearLabel')}<input name="year" defaultValue={me.year ?? ''} maxLength={10} placeholder="24" inputMode={!me.year || /^\d+$/.test(me.year) ? 'numeric' : undefined} className={field} /></label>
         </div>
         {/* 데모 계정은 국적·사용 언어가 고정이라 잠가 둔다(서버도 바꾸지 않는다) */}
         <label className={label}>{t(lang, 'nationality')}
-          <select name="nationality" defaultValue={me.nationality} disabled={locked} className={`${field} disabled:opacity-60`}>{NATIONS.map(n => <option key={n} value={n}>{nationName(n, lang)}</option>)}</select>
+          <select name="nationality" defaultValue={me.nationality} disabled={locked} className={`${field} disabled:opacity-60`}>{NATIONS.map(n => <option key={n} value={n}>{nationLabel(n, lang)}</option>)}</select>
         </label>
         <label className={label}>{t(lang, 'language')}
           <select name="lang" defaultValue={lang} disabled={locked} className={`${field} disabled:opacity-60`}>{LANGS.map(l => <option key={l.code} value={l.code} lang={l.code}>{l.label}</option>)}</select>

@@ -23,7 +23,8 @@ export default function MiniMap({ lat, lng, zoom = 17, height = 120, label }: { 
           decoding="async" draggable={false} className="absolute max-w-none select-none" style={{ left: `calc(50% + ${x * TILE - px}px)`, top: `calc(50% + ${y * TILE - py}px)` }} />
       ))}
       <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-full flex-col items-center" aria-hidden>
-        {label && <span className="mb-1 whitespace-nowrap rounded-lg bg-teal px-2 py-1 text-[12px] font-bold text-white shadow">{label}</span>}
+        {/* 긴 건물 이름이 작은 지도 밖으로 나가지 않게 말줄임 */}
+        {label && <span className="mb-1 max-w-[60vw] truncate rounded-lg bg-teal px-2 py-1 text-[12px] font-bold text-white shadow">{label}</span>}
         <span className="h-3.5 w-3.5 rounded-full border-2 border-white bg-teal shadow" />
       </span>
       <span className="absolute bottom-1 right-2 text-[9px] text-white/70">© Esri</span>

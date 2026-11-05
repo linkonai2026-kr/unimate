@@ -19,7 +19,7 @@ export default async function MyQr({ handle }: { handle: string }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="w-56" role="img" aria-label={url} dangerouslySetInnerHTML={{ __html: svg }} />
-      <p className="break-all text-center text-[11px] text-muted">{url}</p>
+      <p className="break-all text-center text-[12px] text-muted">{url}</p>
     </div>
   )
 }

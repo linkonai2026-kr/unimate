@@ -1,7 +1,7 @@
 // 공지·학식 번역을 사용자 요청 때가 아니라 미리 만들어 두는 곳.
-// - 공지: 하루 한 번(한국 날짜) 학사·일반 목록을 받아 다섯 언어 제목 번역·3줄 요약·마감·신청 정보를 만들어 저장
+// - 공지: 하루 한 번(한국 날짜) 학사·일반 목록을 받아 여섯 언어 제목 번역·3줄 요약·마감·신청 정보를 만들어 저장
 //   (어제 이미 요약한 공지는 다시 요약하지 않는다: 새 공지만 AI를 부른다)
-// - 학식: 한 주에 한 번(학교 사이트의 일~토 주 기준) 메뉴 이름을 다섯 언어로 번역해 저장(이미 번역한 이름은 다시 쓰지 않는다)
+// - 학식: 한 주에 한 번(학교 사이트의 일~토 주 기준) 메뉴 이름을 한국어 외 다섯 언어로 번역해 저장(이미 번역한 이름은 다시 쓰지 않는다)
 // 화면은 저장본만 읽는다. 저장본이 오늘(이번 주) 것이 아니면 있는 저장본을 바로 보여 주고, 뒤에서 한 번만 다시 만든다(잠금)
 import 'server-only'
 import { after } from 'next/server'
@@ -76,7 +76,7 @@ async function pool<T, R>(items: T[], n: number, run: (x: T) => Promise<R>): Pro
   return out
 }
 
-/** 공지 한 게시판을 다섯 언어로 만든다. prev: 지난 저장본(이미 요약한 공지는 그대로 쓴다) */
+/** 공지 한 게시판을 여섯 언어로 만든다. prev: 지난 저장본(이미 요약한 공지는 그대로 쓴다) */
 export async function buildNotices(board: NoticeBoard, store: CacheStore = getCacheStore(), now = Date.now(), opts: { retitle?: boolean } = {}): Promise<Record<Lang, NoticeSnap>> {
   const day = kstDay(now).iso
   const { items, source } = await getNotices(board, NOTICE_LIMIT)

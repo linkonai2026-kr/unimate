@@ -21,9 +21,9 @@ describe('withTimeout', () => {
 })
 
 describe('translate (대역)', () => {
-  it('다섯 언어 키를 모두 돌려주고 한글이면 ko로 감지', async () => {
+  it('여섯 언어 키를 모두 돌려주고 한글이면 ko로 감지', async () => {
     const r = await translate({ title: '학식 같이 먹을 사람?', body: '정문에서 만나요' })
-    expect(Object.keys(r.tr).sort()).toEqual(['en', 'ko', 'uz', 'vi', 'zh'])
+    expect(Object.keys(r.tr).sort()).toEqual(['en', 'ja', 'ko', 'uz', 'vi', 'zh'])
     expect(r.detected).toBe('ko')
   })
   it('베트남어 성조 문자는 vi로 감지', async () => {

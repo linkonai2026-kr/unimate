@@ -15,9 +15,9 @@ export default function TrText({ text, original, translated, pending, from, view
       {/* 화면 낭독기가 알맞은 발음으로 읽도록 보이는 글의 언어를 적는다 */}
       <span lang={showOrig || !translated ? from : viewer} className={`whitespace-pre-wrap break-words ${className ?? ''}`}>{showOrig ? original : text}</span>
       {badge && translated && (
-        <button type="button" onClick={() => setOrig(o => !o)} aria-pressed={showOrig} className="press mt-2 flex items-center gap-1 rounded-lg bg-mint-soft px-2 py-1 text-[12px] font-semibold text-mint-text">
-          <Globe size={14} weight="bold" aria-hidden />
-          {t(viewer, 'translatedFrom', { lang: fromName })} · {showOrig ? t(viewer, 'showTranslation') : t(viewer, 'showOriginal')}
+        <button type="button" onClick={() => setOrig(o => !o)} aria-pressed={showOrig} className="press mt-2 flex min-h-9 items-center gap-1 rounded-lg bg-mint-soft px-2.5 py-1.5 text-left text-[12px] font-semibold leading-snug text-mint-text">
+          <Globe size={14} weight="bold" className="shrink-0" aria-hidden />
+          <span>{t(viewer, 'translatedFrom', { lang: fromName })} · {showOrig ? t(viewer, 'showTranslation') : t(viewer, 'showOriginal')}</span>
         </button>
       )}
       {badge && pending && !translated && (

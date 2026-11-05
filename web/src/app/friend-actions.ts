@@ -60,6 +60,6 @@ export async function sendMessage(toHandle: string, f: FormData) {
   const m = await d.store.createMessage({ fromId: me.id, toId: other.id, body, lang: me.lang })
   const topic = dmTopic(me.id, other.id)
   await d.publish({ topic, kind: 'new', id: m.id })
-  translateLater(d, 'message', m.id, { body }, [topic], async () => messageContext(await d.store.listMessages(me.id, other.id), m))
+  translateLater(d, 'message', m.id, { body }, [topic], async () => messageContext(await d.store.listMessages(me.id, other.id), m), m.lang)
   redirect(`/messages/${other.handle}`)
 }

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { sendMessage } from '@/app/friend-actions'
 import Avatar from '@/components/Avatar'
 import LiveRefresh from '@/components/LiveRefresh'
+import ScrollToEnd from '@/components/ScrollToEnd'
 import TrText from '@/components/TrText'
 import { Flag, SanctionBanner } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
@@ -31,7 +32,7 @@ export default async function ChatPage({ params }: PageProps<'/messages/[handle]
       <LiveRefresh topics={[dmTopic(me.id, other.id)]} />
       <Link href={`/friends/${other.handle}`} className="tap sticky top-14 z-10 flex items-center gap-2.5 bg-bg-soft/95 px-5 py-2 backdrop-blur">
         <Avatar n={other.avatar ?? 0} photo={other.photo} size={32} />
-        <span className="flex items-center gap-1.5 text-[16px] font-bold">{other.nickname}<Flag code={other.nationality} size={12} /></span>
+        <span className="flex min-w-0 items-center gap-1.5 text-[16px] font-bold"><span className="truncate">{other.nickname}</span><Flag code={other.nationality} size={12} /></span>
       </Link>
       <ul className="space-y-3 px-4 pt-2" aria-live="polite">
         {msgs.map(m => {
@@ -44,16 +45,18 @@ export default async function ChatPage({ params }: PageProps<'/messages/[handle]
                   ? <span className="whitespace-pre-wrap break-words">{m.body}</span>
                   : <TrText text={p.text} original={m.body} translated={p.translated} pending={lang !== m.lang && isPending(m)} from={m.lang} viewer={lang} />}
               </div>
-              <span className="mt-1 px-1 text-[11px] text-[#8b93a1]">{timeAgo(m.createdAt, lang)}</span>
+              <span className="mt-1 px-1 text-[12px] text-[#8b93a1]">{timeAgo(m.createdAt, lang)}</span>
             </li>
           )
         })}
       </ul>
+      {/* 처음 열면 가장 새 쪽지로, 새 쪽지가 오면 아래를 보고 있던 경우에만 따라 내려간다 */}
+      <ScrollToEnd n={msgs.length} />
       {isSuspended(me) ? (
-        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg-soft/95 pb-3 pt-2 backdrop-blur"><SanctionBanner lang={lang} status={sanctionStatus(me)} /></div>
+        <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-bg-soft/95 pb-3 pt-2 backdrop-blur"><SanctionBanner lang={lang} status={sanctionStatus(me)} /></div>
       ) : (
-        <form action={sendMessage.bind(null, other.handle)} className="fixed inset-x-0 bottom-16 z-10 mx-auto flex max-w-[480px] items-center gap-2 bg-bg-soft/95 px-3 pb-3 pt-2 backdrop-blur">
-          <input name="body" required maxLength={1000} autoComplete="off" aria-label={t(lang, 'messagePlaceholder')} placeholder={t(lang, 'messagePlaceholder')} className="h-12 min-w-0 flex-1 rounded-2xl bg-bg px-4 text-[16px] outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
+        <form action={sendMessage.bind(null, other.handle)} className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto flex max-w-[480px] items-center gap-2 bg-bg-soft/95 px-3 pb-3 pt-2 backdrop-blur">
+          <input name="body" required maxLength={1000} autoComplete="off" enterKeyHint="send" aria-label={t(lang, 'messagePlaceholder')} placeholder={t(lang, 'messagePlaceholder')} className="h-12 min-w-0 flex-1 rounded-2xl bg-bg px-4 text-[16px] outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
           <button aria-label={t(lang, 'submit')} className="press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-navy text-white"><PaperPlaneRight size={20} weight="fill" aria-hidden /></button>
         </form>
       )}

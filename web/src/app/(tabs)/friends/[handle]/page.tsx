@@ -31,7 +31,7 @@ export default async function FriendPage({ params }: PageProps<'/friends/[handle
       <section className="rise card mx-3 flex items-center gap-3 p-5">
         <Avatar n={other.avatar ?? 0} photo={other.photo} size={52} />
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-[19px] font-bold">{other.nickname}<Flag code={other.nationality} size={13} /></p>
+          <p className="flex items-center gap-1.5 text-[19px] font-bold"><span className="truncate">{other.nickname}</span><Flag code={other.nationality} size={13} /></p>
           <p className="text-[14px] text-muted">@{other.handle}</p>
         </div>
       </section>
@@ -40,7 +40,7 @@ export default async function FriendPage({ params }: PageProps<'/friends/[handle
         <Link href={`/messages/${other.handle}`} className={btn.mint}><ChatsCircle size={20} weight="fill" aria-hidden />{t(lang, 'sendMessage')}</Link>
       </div>
       <div className="rise mx-3">
-        <p className="mb-2 px-2 text-[17px] font-bold">{t(lang, 'timetableOf', { name: other.nickname })}</p>
+        <p className="mb-2 break-words px-2 text-[17px] font-bold">{t(lang, 'timetableOf', { name: other.nickname })}</p>
         {!isFriend && <p className="mb-2 flex items-center gap-1.5 px-2 text-[13px] font-medium text-muted"><LockSimple size={14} weight="bold" aria-hidden />{t(lang, 'friendsOnlyTimetable')}</p>}
         {free.length > 0 && <p className="mb-2 flex items-center gap-1.5 px-2 text-[13px] font-semibold text-teal"><span className="h-3 w-5 rounded border-2 border-dashed border-mint bg-mint/15" aria-hidden />{t(lang, 'freeOverlap')}</p>}
         <TimetableGrid lang={lang} courses={isFriend ? theirs.map(c => ({ key: c.id, name: c.name, place: c.place, day: c.day, start: c.start, end: c.end })) : []} free={free} />

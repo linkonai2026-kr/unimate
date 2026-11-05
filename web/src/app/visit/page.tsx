@@ -1,11 +1,11 @@
 // 방문객 모드 첫 화면: 로그인 없이 교직원·지역 주민·방문객이 언어를 고르고 길찾기·학식·공지로 바로 간다
-import { CaretRight, ForkKnife, MapPin, Megaphone } from '@phosphor-icons/react/dist/ssr'
+import { CaretRight, ForkKnife, MapPin, Megaphone, Phone } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import VisitShell from '@/components/VisitShell'
 import { guestLang } from '@/lib/auth/session'
 import { LANGS, t } from '@/lib/i18n'
 import { buildingById, buildingName } from '@/lib/map/buildings'
-import { POPULAR, visitHref } from '@/lib/visit'
+import { AUDIENCE_TITLE, audienceView, POPULAR, STAFF_NOTICES, visitHref } from '@/lib/visit'
 
 export default async function VisitHome({ searchParams }: PageProps<'/visit'>) {
   const lang = guestLang((await searchParams).lang)
@@ -40,6 +40,44 @@ export default async function VisitHome({ searchParams }: PageProps<'/visit'>) {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* 학생이 아닌 사람도 바로 쓸 수 있게: 방문객·주민·교직원별로 갈 곳과 전화를 묶어 보여 준다(사용자 범위 확장) */}
+      <section className="rise mx-3 mt-3">
+        <h2 className="px-2 text-[17px] font-bold">{AUDIENCE_TITLE[lang]}</h2>
+        <div className="mt-2 space-y-2">
+          {audienceView(lang).map(g => (
+            <details key={g.id} className="card group" open={g.id === 'visitor'}>
+              <summary className="press flex min-h-14 cursor-pointer list-none items-center gap-3 px-5 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="flex-1">
+                  <span className="block text-[16px] font-bold">{g.title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-muted">{g.desc}</span>
+                </span>
+                <CaretRight size={18} className="shrink-0 text-muted transition-transform group-open:rotate-90" aria-hidden />
+              </summary>
+              <ul className="divide-y divide-line/70 border-t border-line/70">
+                {g.places.map((p, i) => (
+                  <li key={`${p.building}-${i}`} className="flex items-center gap-2 px-5 py-2.5">
+                    <Link href={visitHref('/visit/map', lang, { b: p.building })} className="press min-w-0 flex-1">
+                      <span className="block truncate text-[15px] font-semibold">{p.name}</span>
+                      <span className="block truncate text-[13px] text-muted">
+                        {p.name === p.buildingName ? '' : `${p.buildingName}${p.where ? ` · ${p.where}` : ''}`}
+                        {p.hours ? `${p.name === p.buildingName ? '' : ' · '}${p.hours}` : ''}
+                      </span>
+                      {p.open && <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${p.open.length > 12 ? 'bg-bg-soft text-muted' : 'bg-mint-soft text-mint-text'}`}>{p.open}</span>}
+                    </Link>
+                    {p.tel && <a href={`tel:${p.tel}`} aria-label={`${p.name} ${p.tel}`} className="press flex h-9 shrink-0 items-center gap-1 rounded-xl bg-bg-soft px-2.5 text-[13px] font-semibold text-ink"><Phone size={15} weight="fill" className="text-teal" aria-hidden />{p.tel.replace(/^033-/, '')}</a>}
+                  </li>
+                ))}
+                {g.id === 'staff' && (
+                  <li className="px-5 py-2.5">
+                    <Link href={visitHref('/visit/notices', lang, { b: 'general' })} className="press flex items-center gap-2 text-[15px] font-semibold text-teal"><Megaphone size={18} weight="fill" aria-hidden />{STAFF_NOTICES[lang]}</Link>
+                  </li>
+                )}
+              </ul>
+            </details>
+          ))}
+        </div>
       </section>
 
       <ul className="mt-3 space-y-3">

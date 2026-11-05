@@ -33,10 +33,10 @@ describe('건물 안 시설', () => {
     expect(buildingName(hq, 'constructor')).toBe('대학본부')
     expect(pinsFor('vi').find(p => p.id === 'hq')?.label).toBe('Tòa Hiệu bộ')
   })
-  it('모든 시설은 있는 건물에 붙어 있고 5개 언어 이름이 다 있다', () => {
+  it('모든 시설은 있는 건물에 붙어 있고 6개 언어 이름이 다 있다', () => {
     for (const [id, list] of Object.entries(FACILITIES)) {
       expect(BUILDINGS.some(b => b.id === id)).toBe(true)
-      for (const f of list) for (const l of ['ko', 'en', 'vi', 'zh', 'uz'] as const) expect(f.name[l]).toBeTruthy()
+      for (const f of list) for (const l of ['ko', 'en', 'vi', 'zh', 'uz', 'ja'] as const) expect(f.name[l]).toBeTruthy()
     }
   })
 })

@@ -8,7 +8,7 @@ import type { LatLng } from '@/lib/map/buildings'
 import type { FacilityKind, FacilityView } from '@/lib/map/facilities'
 import { createGpsFilter, onRoute } from '@/lib/map/gps'
 import { bearing, turnBy } from '@/lib/map/heading'
-import { indoorPlan, nearbyPlan } from '@/lib/map/indoor'
+import { INDOOR, nearIndoor, planFor } from '@/lib/map/indoor'
 import { isLatLng, navState, offRoute, pickStart, simulateWalk, straightRoute, type Route, type Step } from '@/lib/map/route'
 import IndoorMap from './IndoorMap'
 import type { Pin } from './MapView'
@@ -108,6 +108,9 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   const hd = useHeading()
   const [canHeading, setCanHeading] = useState(false)
   useEffect(() => { const timer = setTimeout(() => setCanHeading(touchDevice()), 0); return () => clearTimeout(timer) }, [])
+  // 휴대폰이면 지도에 들어오자마자 방향 센서를 켠다(아이폰은 이미 허락했으면 바로, 아니면 화면 첫 터치 때)
+  const autoHeading = hd.auto
+  useEffect(() => (touchDevice() ? autoHeading() : undefined), [autoHeading])
   const startHeading = hd.start
   const wantHeading = useCallback(() => { if (touchDevice()) void startHeading() }, [startHeading])
 
@@ -161,6 +164,8 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   const [watchOn, setWatchOn] = useState(false)
   const [locError, setLocError] = useState<'denied' | 'https' | null>(null)
   const [recenter, setRecenter] = useState(0)
+  /** 사용자가 "내 위치" 버튼을 눌렀는지(저절로 켠 위치 감시가 거절됐을 때는 안내 문구를 띄우지 않는다) */
+  const userAsked = useRef(false)
 
   // 실시간 GPS: 미리보기·안내 중에 내 위치를 계속 따라간다(데모 모드가 아닐 때)
   const live = (mode === 'preview' || mode === 'nav') && !demo && !!start && start.reason !== 'denied'
@@ -173,9 +178,13 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
     return () => navigator.geolocation.clearWatch(id)
   }, [live, takeFix])
 
-  // 둘러보기에서도 내 위치를 실시간으로: 이미 허용돼 있으면 바로, 아니면 "내 위치" 버튼을 눌렀을 때 켠다
+  // 둘러보기에서도 내 위치를 실시간으로: 휴대폰이거나 이미 허용돼 있으면 바로, 아니면 "내 위치" 버튼을 눌렀을 때 켠다
   useEffect(() => {
     let alive = true
+    if (touchDevice() && window.isSecureContext && navigator.geolocation) {
+      const timer = setTimeout(() => { if (alive) setWatchOn(true) }, 0)
+      return () => { alive = false; clearTimeout(timer) }
+    }
     try {
       // 일부 브라우저는 geolocation 조회를 지원하지 않아 바로 예외를 낸다
       navigator.permissions?.query({ name: 'geolocation' as PermissionName }).then(s => { if (alive && s.state === 'granted') setWatchOn(true) }, noop)
@@ -190,12 +199,14 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       p => {
         setLocError(null); setGps(takeFix(p))
       },
-      e => { if (e.code === e.PERMISSION_DENIED) { setLocError(window.isSecureContext ? 'denied' : 'https'); setWatchOn(false) } },
+      // 화면에 들어올 때 저절로 켠 것이 거절되면 조용히 끄고, "내 위치" 버튼을 눌렀을 때만 허용 방법을 알려 준다
+      e => { if (e.code === e.PERMISSION_DENIED) { if (userAsked.current) setLocError(window.isSecureContext ? 'denied' : 'https'); setWatchOn(false) } },
       { enableHighAccuracy: true, maximumAge: 0 },
     )
     return () => navigator.geolocation.clearWatch(id)
   }, [watchOn, live, takeFix])
   function locate() {
+    userAsked.current = true
     if (!window.isSecureContext || !navigator.geolocation) { setLocError(window.isSecureContext ? 'denied' : 'https'); return }
     setWatchOn(true)
     setRecenter(n => n + 1)
@@ -248,31 +259,29 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
 
   const next = route && state ? route.steps[state.next] : null
 
-  // 실내 안내도: 안내도가 있는 건물에 10m 안으로 오면 띄운다(닫으면 25m 넘게 멀어질 때까지 다시 안 띄움).
-  // 도착 화면이나 건물 카드의 버튼으로 직접 열 수도 있다
+  // 실내 지도 연결: GPS 오차 범위 안에서 건물(안내도가 있는 건물이나 가는 건물)에 다가가면 "실내 지도로 연결합니다"와 버튼을 띄운다.
+  // 버튼을 눌러야 실내 지도가 열린다. 안내를 닫으면 그 건물에서 멀어질 때까지 다시 묻지 않는다. 도착 화면·건물 카드 버튼으로 바로 열 수도 있다
   const here = mode === 'browse' ? gps?.pos ?? null : me
-  const [closedIndoor, setClosedIndoor] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState<string | null>(null)
   const [openIndoor, setOpenIndoor] = useState<string | null>(null)
-  const near = nearbyPlan(here, { current: closedIndoor, prefer: selected })
+  const nearId = nearIndoor(here, { ids: [...INDOOR.map(p => p.buildingId), ...(dest ? [dest.id] : [])], acc: demo ? null : gps?.acc, current: dismissed, prefer: selected })
   useEffect(() => {
-    if (!closedIndoor || near?.buildingId === closedIndoor) return
-    const timer = setTimeout(() => setClosedIndoor(null), 0)
+    if (!dismissed || nearId === dismissed) return
+    const timer = setTimeout(() => setDismissed(null), 0)
     return () => clearTimeout(timer)
-  }, [closedIndoor, near?.buildingId])
-  useEffect(() => {
-    if (mode !== 'arrived' || !dest || !indoorPlan(dest.id)) return
-    const timer = setTimeout(() => setOpenIndoor(dest.id), 0)
-    return () => clearTimeout(timer)
-  }, [mode, dest])
-  const indoor = indoorPlan(openIndoor) ?? (near && near.buildingId !== closedIndoor ? near : null)
-  const closeIndoor = () => { if (indoor) setClosedIndoor(indoor.buildingId); setOpenIndoor(null) }
+  }, [dismissed, nearId])
+  const indoor = planFor(openIndoor)
+  const askIndoor = !indoor && nearId && nearId !== dismissed && mode !== 'arrived' ? nearId : null
+  const closeIndoor = () => { if (indoor) setDismissed(indoor.buildingId); setOpenIndoor(null) }
+  const destIndoor = dest ? planFor(dest.id) : undefined
   // 안내 중 다음 지점이 내가 바라보는 쪽에서 몇 도 돌아가 있는지(화살표)
   const aim = hd.heading != null && next && me ? turnBy(hd.heading, bearing(me, next.pos)) : null
   const fromLabel = start && start.reason !== 'denied' ? t(lang, 'myLocation') : t(lang, 'mainGate')
   const destFacilities = dest ? facilities[dest.id] ?? [] : []
 
+  // 높이: 상단 56px·하단 탭 64px·아이폰 홈 바(safe-area)를 뺀 나머지. isolate로 Leaflet 층(z-1000)이 상단 바·탭 위로 새지 않게 하고, 틀의 아래 여백(pb)은 지도에선 없앤다
   return (
-    <div className="relative h-[calc(100dvh-56px-64px)] overflow-hidden">
+    <div className="relative isolate -mb-[calc(8rem+env(safe-area-inset-bottom))] h-[calc(100dvh-56px-64px-env(safe-area-inset-bottom))] overflow-hidden">
       {(() => {
         const view = {
           center, pins, selected, route: route?.coords, follow: mode === 'nav', recenter, heading: hd.heading,
@@ -293,7 +302,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       })()}
 
       {mode === 'browse' && (
-        <div className="absolute right-3 top-3 z-[500] flex items-center gap-2">
+        <div className="absolute right-3 top-3 z-[1100] flex items-center gap-2">
           {gps && <p role="status" aria-label={t(lang, 'myLocation')} className="rounded-full bg-bg/95 px-3 py-1.5 text-[13px] font-semibold text-ink shadow-[0_4px_12px_-4px_rgba(1,29,72,.3)]"><span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-[#3b82f6]" aria-hidden />{t(lang, 'myLocation')} ±{Math.round(gps.acc)}m</p>}
           {canHeading && hd.status !== 'on' && (
             <button type="button" onClick={() => void hd.start()} aria-label={t(lang, 'headingOn')} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg text-[#3b82f6] shadow-[0_4px_12px_-4px_rgba(1,29,72,.35)]"><Compass size={22} weight="bold" aria-hidden /></button>
@@ -302,14 +311,14 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
         </div>
       )}
       {mode === 'browse' && canHeading && (hd.status === 'unsupported' || hd.status === 'denied') && !locError && (
-        <p role="status" className="absolute left-3 right-3 top-16 z-[500] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, 'headingNoSensor')}</p>
+        <p role="status" className="absolute left-3 right-3 top-16 z-[1100] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, 'headingNoSensor')}</p>
       )}
       {mode === 'browse' && locError && (
-        <p role="alert" className="absolute left-3 right-3 top-16 z-[500] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, locError === 'https' ? 'locationNeedsHttps' : 'locationDenied')}</p>
+        <p role="alert" className="absolute left-3 right-3 top-16 z-[1100] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, locError === 'https' ? 'locationNeedsHttps' : 'locationDenied')}</p>
       )}
 
       {mode === 'preview' && route && (
-        <div className="absolute left-14 right-3 top-3 z-[500] space-y-2 rounded-[20px] bg-bg p-4 text-[15px] shadow-[0_8px_24px_-8px_rgba(1,29,72,.25)]">
+        <div className="absolute left-14 right-3 top-3 z-[1100] space-y-2 rounded-[20px] bg-bg p-4 text-[15px] shadow-[0_8px_24px_-8px_rgba(1,29,72,.25)]">
           <p className="flex items-center gap-2.5"><span className="h-2.5 w-2.5 rounded-full bg-navy" aria-hidden />{fromLabel}</p>
           <p className="flex items-center gap-2.5 font-bold"><span className="h-2.5 w-2.5 rounded-full bg-danger" aria-hidden />{destLabel}</p>
         </div>
@@ -318,7 +327,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       {mode === 'nav' && next && state && (() => {
         const { Icon } = turnInfo(next.turn)
         return (
-          <div aria-live="polite" className="absolute left-14 right-3 top-3 z-[500] flex items-center gap-4 rounded-[20px] bg-navy p-4 text-white shadow-[0_8px_24px_-8px_rgba(1,29,72,.5)]">
+          <div aria-live="polite" className="absolute left-14 right-3 top-3 z-[1100] flex items-center gap-4 rounded-[20px] bg-navy p-4 text-white shadow-[0_8px_24px_-8px_rgba(1,29,72,.5)]">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/12" aria-hidden><Icon size={32} weight="bold" /></span>
             <div className="min-w-0">
               <p className="text-[28px] font-bold leading-tight tracking-tight">{t(lang, 'inMeters', { m: state.toNext })}</p>
@@ -335,12 +344,12 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       })()}
 
       {mode === 'browse' && dest && (
-        <div className="rise absolute inset-x-0 bottom-0 z-[500] flex max-h-[62%] flex-col rounded-t-[28px] bg-bg px-5 pb-6 pt-3 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div className="rise absolute inset-x-0 bottom-0 z-[1100] flex max-h-[62%] flex-col rounded-t-[28px] bg-bg px-5 pb-6 pt-3 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <div className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full bg-line" aria-hidden />
           <p className="text-[22px] font-bold tracking-tight">{destLabel}</p>
           {/* 건물 안 시설: 이름·위치, 운영시간, 누르면 전화 */}
           {destFacilities.length > 0 && (
-            <div className="-mx-5 mt-3 min-h-0 overflow-y-auto px-5">
+            <div className="-mx-5 mt-3 min-h-0 overflow-y-auto overscroll-contain px-5">
               <p className="text-[13px] font-semibold text-muted">{t(lang, 'insideBuilding')}</p>
               <ul className="mt-1 divide-y divide-line/70">
                 {destFacilities.map((f, i) => {
@@ -351,8 +360,10 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
                       <span className="min-w-0 flex-1">
                         <span className="block text-[15px] font-semibold">{f.name}{f.where && <span className="ml-1.5 text-[13px] font-medium text-muted">{f.where}</span>}</span>
                         {f.hours && <span className="block text-[13px] text-teal">{f.hours}</span>}
+                        {/* 학생이 아닌 사람도 쓸 수 있는 곳인지(방문객 모드·로그인 화면 공통) */}
+                        {f.open && <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${f.open.length > 12 ? 'bg-bg-soft text-muted' : 'bg-mint-soft text-mint-text'}`}>{f.open}</span>}
                       </span>
-                      {f.tel && <a href={`tel:${f.tel}`} aria-label={`${f.name} ${f.tel}`} className="press flex h-9 shrink-0 items-center gap-1 rounded-xl bg-bg-soft px-2.5 text-[13px] font-semibold text-ink"><Phone size={15} weight="fill" className="text-teal" aria-hidden />{f.tel.replace(/^033-/, '')}</a>}
+                      {f.tel && <a href={`tel:${f.tel}`} aria-label={`${f.name} ${f.tel}`} className="press flex h-11 shrink-0 items-center gap-1 rounded-xl bg-bg-soft px-2.5 text-[13px] font-semibold text-ink"><Phone size={15} weight="fill" className="text-teal" aria-hidden />{f.tel.replace(/^033-/, '')}</a>}
                     </li>
                   )
                 })}
@@ -364,7 +375,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
             className="press mt-4 flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white disabled:opacity-60">
             <PersonSimpleWalk size={22} weight="bold" aria-hidden />{t(lang, 'route')}
           </button>
-          {indoorPlan(dest.id) && (
+          {destIndoor && (
             <button type="button" onClick={() => setOpenIndoor(dest.id)} className="press mt-2 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-bg-soft text-[16px] font-bold">
               <Stairs size={20} weight="bold" aria-hidden />{t(lang, 'indoorMap')}
             </button>
@@ -373,7 +384,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       )}
 
       {mode === 'preview' && route && (
-        <div className="rise absolute inset-x-0 bottom-0 z-[500] flex max-h-[58%] flex-col rounded-t-[28px] bg-bg shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div className="rise absolute inset-x-0 bottom-0 z-[1100] flex max-h-[58%] flex-col rounded-t-[28px] bg-bg shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <div className="px-5 pb-4 pt-3">
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" aria-hidden />
             <p className="flex items-center gap-1 text-[14px] font-semibold text-teal"><PersonSimpleWalk size={18} weight="bold" aria-hidden />{t(lang, 'walk')}</p>
@@ -388,7 +399,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
               <button type="button" onClick={startNav} className="press flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white"><Play size={18} weight="fill" aria-hidden />{t(lang, 'startNav')}</button>
             </div>
           </div>
-          <ol className="flex-1 overflow-y-auto border-t border-line/70 py-1">
+          <ol className="flex-1 overflow-y-auto overscroll-contain border-t border-line/70 py-1">
             {route.steps.map((s, i) => {
               const { Icon } = turnInfo(s.turn)
               return (
@@ -403,7 +414,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       )}
 
       {mode === 'nav' && state && route && (
-        <div className="absolute inset-x-0 bottom-0 z-[500] flex items-center gap-3 rounded-t-[24px] bg-bg px-5 py-4 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div className="absolute inset-x-0 bottom-0 z-[1100] flex items-center gap-3 rounded-t-[24px] bg-bg px-5 py-4 shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <div className="flex-1">
             {live && <p className="flex items-center gap-1 text-[12px] font-bold text-teal"><span className="h-2 w-2 animate-pulse rounded-full bg-teal" aria-hidden />{t(lang, 'gpsLive')}</p>}
             <p className="text-[22px] font-bold tracking-tight">{t(lang, 'minutes', { n: mins((state.remaining / Math.max(route.meters, 1)) * route.seconds) })} <span className="text-[15px] font-semibold text-muted">{state.remaining}m</span></p>
@@ -413,14 +424,24 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       )}
 
       {mode === 'arrived' && (
-        <div role="status" className="rise absolute inset-x-0 bottom-0 z-[500] flex flex-col items-center rounded-t-[28px] bg-bg px-6 pb-6 pt-8 text-center shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
+        <div role="status" className="rise absolute inset-x-0 bottom-0 z-[1100] flex flex-col items-center rounded-t-[28px] bg-bg px-6 pb-6 pt-8 text-center shadow-[0_-8px_24px_-8px_rgba(1,29,72,.2)]">
           <span className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-mint-soft text-teal" aria-hidden><Confetti size={34} weight="fill" /></span>
           <p className="mt-3 text-[24px] font-bold tracking-tight">{t(lang, 'arrived')}</p>
           {room?.roomNo && room.floor != null && <p className="mt-1 text-[17px] font-semibold text-teal">{t(lang, 'floorRoom', { floor: room.floor, room: room.roomNo })}</p>}
-          {dest && indoorPlan(dest.id) && (
+          {dest && destIndoor && (
             <button type="button" onClick={() => setOpenIndoor(dest.id)} className="press mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white"><Stairs size={20} weight="bold" aria-hidden />{t(lang, 'indoorMap')}</button>
           )}
-          <button type="button" onClick={endNav} className={`press ${dest && indoorPlan(dest.id) ? 'mt-2' : 'mt-6'} flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-[17px] font-bold text-white`}>{t(lang, 'confirm')}</button>
+          <button type="button" onClick={endNav} className={`press ${destIndoor ? 'mt-2' : 'mt-6'} flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-[17px] font-bold text-white`}>{t(lang, 'confirm')}</button>
+        </div>
+      )}
+
+      {/* 건물에 다가가면: "○○ 실내 지도로 연결합니다" + 실내 지도 보기 버튼(누르면 열림), 닫기 */}
+      {askIndoor && (
+        <div role="status" className={`rise absolute left-3 right-3 z-[1150] flex items-center gap-3 rounded-[20px] bg-bg p-3 pl-4 shadow-[0_8px_24px_-8px_rgba(1,29,72,.35)] ${mode === 'browse' ? 'top-16' : 'top-[112px]'}`}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint-soft text-teal" aria-hidden><Stairs size={22} weight="bold" /></span>
+          <p className="min-w-0 flex-1 text-[15px] font-bold leading-snug">{t(lang, 'indoorConnect', { name: pins.find(p => p.id === askIndoor)?.label ?? '' })}</p>
+          <button type="button" onClick={() => setOpenIndoor(askIndoor)} className="press flex h-11 shrink-0 items-center rounded-xl bg-teal px-3 text-[14px] font-bold text-white">{t(lang, 'indoorOpen')}</button>
+          <button type="button" onClick={() => setDismissed(askIndoor)} aria-label={t(lang, 'close')} className="press -ml-1 flex h-11 w-9 shrink-0 items-center justify-center text-muted"><X size={18} weight="bold" aria-hidden /></button>
         </div>
       )}
 

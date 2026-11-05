@@ -25,7 +25,7 @@ export default function TimetableGrid({ courses, lang, free }: { courses: GridCo
         {DAY_LIST.map(d => <span key={d} className="py-2.5">{dayName(d, lang)}</span>)}
       </div>
       <div className="relative grid grid-cols-[28px_repeat(5,1fr)]" style={{ height: hours.length * HOUR_PX }}>
-        <div aria-hidden>{hours.map(h => <div key={h} className="border-b border-line/60 pr-1.5 pt-0.5 text-right text-[11px] font-medium text-[#a4abb8]" style={{ height: HOUR_PX }}>{h}</div>)}</div>
+        <div aria-hidden>{hours.map(h => <div key={h} className="border-b border-line/60 pr-1.5 pt-0.5 text-right text-[11px] font-medium text-muted" style={{ height: HOUR_PX }}>{h}</div>)}</div>
         {DAY_LIST.map(d => (
           <div key={d} className="relative border-l border-line/60">
             {hours.map(h => <div key={h} className="border-b border-line/60" style={{ height: HOUR_PX }} aria-hidden />)}
@@ -35,14 +35,16 @@ export default function TimetableGrid({ courses, lang, free }: { courses: GridCo
             {shown.filter(c => c.day === d).map(c => {
               // 화면 읽기 프로그램용: "월 09:00–10:30 과목 강의실"
               const label = `${dayName(d, lang)} ${fmtMin(c.start)}–${fmtMin(c.end)} ${c.name}${c.place ? ` ${c.place}` : ''}`
+              const height = Math.max(top(c.end) - top(c.start) - 1, 12)
+              // 좁은 칸에서 긴 과목명은 세 줄까지만, 강의실은 한 줄로 자르고 아주 낮은 블록(30분)에서는 숨긴다
               const body = (
                 <>
-                  <p className="text-[11px] font-bold leading-tight">{c.name}</p>
-                  <p className="mt-0.5 leading-tight opacity-90">{c.place}</p>
+                  <p className="line-clamp-3 break-words text-[11px] font-bold leading-tight">{c.name}</p>
+                  {height >= 40 && <p className="mt-0.5 truncate leading-tight opacity-90">{c.place}</p>}
                 </>
               )
-              const cls = `press absolute inset-x-[2px] overflow-hidden rounded-[10px] p-1.5 text-[10px] text-white ${c.highlight ? 'ring-2 ring-navy ring-offset-1' : ''}`
-              const style = { top: top(c.start), height: Math.max(top(c.end) - top(c.start) - 1, 12), background: colorOf(c) }
+              const cls = `press absolute inset-x-[2px] overflow-hidden rounded-[10px] p-1 text-[10px] text-white ${c.highlight ? 'ring-2 ring-navy ring-offset-1' : ''}`
+              const style = { top: top(c.start), height, background: colorOf(c) }
               return c.href
                 ? <Link key={c.key} href={c.href} scroll={false} aria-label={label} aria-current={c.highlight ? 'true' : undefined} className={cls} style={style}>{body}</Link>
                 : <div key={c.key} role="img" aria-label={label} className={cls} style={style}>{body}</div>

@@ -11,6 +11,7 @@ import { DAYS, SLOT_END, SLOT_START, fmtMin, toMin } from '@/lib/timetable/slots
 const TIMES = Array.from({ length: (SLOT_END - SLOT_START) / 30 + 1 }, (_, i) => fmtMin(SLOT_START + i * 30))
 
 type State = { error: 'clash' | 'invalid' } | null
+const select = `${field.replace('px-4', 'px-2')} min-w-0`
 
 export default function CustomForm({ tableId, lang, open: initial }: { tableId: string; lang: Lang; open: boolean }) {
   const [open, setOpen] = useState(initial)
@@ -33,23 +34,24 @@ export default function CustomForm({ tableId, lang, open: initial }: { tableId: 
   return (
     // action={...} 대신 onSubmit: 폼 액션은 끝나면 폼을 초기화해서, 겹침 안내 뒤 고른 요일·시간과 화면 값이 어긋난다
     <form onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); startTransition(() => action(f)) }} className="space-y-3 px-5 py-4">
-      <input name="name" required maxLength={20} value={v.name} onChange={set('name')} aria-label={t(lang, 'customPlaceholder')} placeholder={t(lang, 'customPlaceholder')} className={field} />
-      <input name="place" maxLength={40} value={v.place} onChange={set('place')} aria-label={t(lang, 'place')} placeholder={t(lang, 'place')} className={field} />
-      <div className="grid grid-cols-3 gap-2">
-        <select name="day" value={v.day} onChange={set('day')} aria-label={t(lang, 'day')} className={field}>
+      <input name="name" required maxLength={20} value={v.name} onChange={set('name')} aria-label={t(lang, 'customPlaceholder')} placeholder={t(lang, 'customPlaceholder')} autoComplete="off" enterKeyHint="next" className={field} />
+      <input name="place" maxLength={40} value={v.place} onChange={set('place')} aria-label={t(lang, 'place')} placeholder={t(lang, 'place')} autoComplete="off" enterKeyHint="next" className={field} />
+      {/* 좁은 화면에서 "10:30"이 잘리지 않게 요일 칸은 좁게, 시간 칸은 넓게·안쪽 여백은 줄인다 */}
+      <div className="grid grid-cols-[1fr_1.2fr_1.2fr] gap-2">
+        <select name="day" value={v.day} onChange={set('day')} aria-label={t(lang, 'day')} className={select}>
           {Array.from({ length: DAYS }, (_, d) => <option key={d} value={d}>{dayName(d, lang)}</option>)}
         </select>
-        <select name="start" value={v.start} onChange={setStart} aria-label={t(lang, 'start')} className={field}>
+        <select name="start" value={v.start} onChange={setStart} aria-label={t(lang, 'start')} className={select}>
           {TIMES.slice(0, -1).map(x => <option key={x}>{x}</option>)}
         </select>
-        <select name="end" value={v.end} onChange={set('end')} aria-label={t(lang, 'end')} className={field}>
+        <select name="end" value={v.end} onChange={set('end')} aria-label={t(lang, 'end')} className={select}>
           {TIMES.filter(x => toMin(x) > toMin(v.start)).map(x => <option key={x}>{x}</option>)}
         </select>
       </div>
       {state?.error && <p role="alert" className="text-[14px] font-medium text-danger">{t(lang, state.error === 'clash' ? 'clashLabel' : 'warnInvalid')}</p>}
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setOpen(false)} className={btn.soft}>{t(lang, 'cancel')}</button>
-        <button disabled={pending} className={`${btn.primary} h-12 text-[15px]`}>{t(lang, 'add')}</button>
+        <button disabled={pending} className={`${btn.primary} !min-h-12 text-[15px]`}>{t(lang, 'add')}</button>
       </div>
     </form>
   )

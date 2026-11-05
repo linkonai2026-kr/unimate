@@ -21,7 +21,7 @@ function BoardRow({ b, pinned, lang }: { b: BoardView; pinned: boolean; lang: La
       <div className="min-w-0 flex-1"><Row href={`/board/${encodeURIComponent(b.id)}`} icon={<IconBox tone={b.custom ? 'teal' : 'gray'}>{b.custom ? <UsersThree size={20} weight="fill" /> : <NotePencil size={20} weight="fill" />}</IconBox>} title={b.name} sub={b.desc} chevron={false} /></div>
       {/* 원하는 상태(!pinned)를 함께 보내 두 번 눌려도 결과가 같다 */}
       <form action={togglePinBoard.bind(null, b.id, !pinned)}>
-        <button aria-label={t(lang, pinned ? 'unpinBoard' : 'pinBoard')} aria-pressed={pinned} className={`press flex h-10 w-10 items-center justify-center rounded-xl ${pinned ? 'bg-mint-soft text-mint-text' : 'text-[#c4c9d2]'}`}>
+        <button aria-label={t(lang, pinned ? 'unpinBoard' : 'pinBoard')} aria-pressed={pinned} className={`press flex h-11 w-11 items-center justify-center rounded-xl ${pinned ? 'bg-mint-soft text-mint-text' : 'text-[#c4c9d2]'}`}>
           <PushPin size={20} weight={pinned ? 'fill' : 'regular'} aria-hidden />
         </button>
       </form>
@@ -40,9 +40,9 @@ export default async function BoardsPage() {
       <Section>
         <div className="grid grid-cols-3 gap-1 px-2 py-4">
           {ACTIVITY.map(([href, key, Icon, tone]) => (
-            <Link key={href} href={href} className="press flex flex-col items-center gap-2 rounded-2xl py-1">
+            <Link key={href} href={href} className="press flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-1">
               <IconBox tone={tone} size={48}><Icon size={24} weight="fill" /></IconBox>
-              <span className="text-[13px] font-medium">{t(lang, key)}</span>
+              <span className="text-center text-[13px] font-medium leading-tight">{t(lang, key)}</span>
             </Link>
           ))}
         </div>

@@ -47,8 +47,8 @@ export async function MenuCard({ lang }: { lang: Lang }) {
         <ul className="space-y-2 px-5 pb-5 pt-2">
           {shown.map(({ c, m, items }, i) => (
             <li key={`${c.name}-${m.meal}-${i}`} className="rounded-2xl bg-bg-soft px-4 py-3">
-              <p className="flex items-center justify-between text-[13px] font-semibold text-mint-text">
-                <span>{mealLabel(m.meal, lang)} · {week.tr[c.name] ?? c.name}</span>{c.price && <span className="text-muted">{c.price}</span>}
+              <p className="flex items-center justify-between gap-2 text-[13px] font-semibold text-mint-text">
+                <span>{mealLabel(m.meal, lang)} · {week.tr[c.name] ?? c.name}</span>{c.price && <span className="shrink-0 text-muted">{c.price}</span>}
               </p>
               <p className="mt-1 text-[16px] font-semibold leading-snug">{items.map(x => week.tr[x] ?? x).join(', ')}</p>
             </li>

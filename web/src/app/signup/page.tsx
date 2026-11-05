@@ -5,13 +5,13 @@ import { SignupForm } from '@/components/AuthForms'
 import { guestLang } from '@/lib/auth/session'
 import { safeNext } from '@/lib/auth/token'
 import { t } from '@/lib/i18n'
-import { NATIONS, nationName } from '@/lib/nations'
+import { NATIONS, nationLabel } from '@/lib/nations'
 
 export default async function SignupPage({ searchParams }: PageProps<'/signup'>) {
   const sp = await searchParams
   const lang = guestLang(sp.lang)
   const next = safeNext(sp.next)
-  const nations = NATIONS.map((n): [string, string] => [n, nationName(n, lang)])
+  const nations = NATIONS.map((n): [string, string] => [n, nationLabel(n, lang)])
   return (
     <AuthShell lang={lang} path="/signup" next={next} footer={<Link href={authHref('/login', lang, next)} className="font-semibold text-teal">{t(lang, 'haveAccount')}</Link>}>
       <SignupForm lang={lang} nations={nations} next={next} />

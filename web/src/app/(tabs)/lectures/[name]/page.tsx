@@ -45,7 +45,7 @@ export default async function LecturePage({ params }: PageProps<'/lectures/[name
     <div className="space-y-3 pb-6 pt-1">
       <LiveRefresh topics={[`reviews:${name}`]} />
       <section className="rise card mx-3 p-5">
-        <h2 className="text-[22px] font-bold tracking-tight">{name}</h2>
+        <h2 className="break-words text-[22px] font-bold tracking-tight">{name}</h2>
         {professor && <p className="mt-0.5 text-[14px] text-muted">{t(lang, 'professor')} {professor}</p>}
         {s.count > 0 && (
           <>
@@ -58,9 +58,9 @@ export default async function LecturePage({ params }: PageProps<'/lectures/[name
                 const opt = f.options.find(o => o.value === top[0])
                 return (
                   <div key={f.key} className="flex items-center gap-3 text-[14px]">
-                    <span className="w-16 shrink-0 text-muted">{f.label[lang]}</span>
+                    <span className="w-20 shrink-0 break-words text-muted">{f.label[lang]}</span>
                     <span className="h-2 flex-1 overflow-hidden rounded-full bg-bg-soft" aria-hidden><span className="block h-full rounded-full bg-teal" style={{ width: `${Math.min(100, (top[1] / s.count) * 100)}%` }} /></span>
-                    <span className="w-24 shrink-0 text-right font-semibold">{opt?.label[lang] ?? top[0]}</span>
+                    <span className="w-28 shrink-0 break-words text-right font-semibold">{opt?.label[lang] ?? top[0]}</span>
                   </div>
                 )
               })}
@@ -98,10 +98,11 @@ export default async function LecturePage({ params }: PageProps<'/lectures/[name
             ))}
           </fieldset>
           <input name="professor" maxLength={REVIEW_LIMITS.professor} autoComplete="off" aria-label={t(lang, 'professor')} placeholder={t(lang, 'professor')} defaultValue={professor} className={field} />
-          <div className="grid grid-cols-2 gap-2">
+          {/* 좁은 화면에서 긴 선택지(vi·uz)가 잘리지 않게 한 줄에 하나씩 */}
+          <div className="grid gap-2">
             {REVIEW_FIELDS.map(f => (
               <label key={f.key} className="space-y-1 text-[13px] font-semibold text-muted">{f.label[lang]}
-                <select name={f.key} defaultValue="" className={`${field} h-12 font-medium text-ink`}>
+                <select name={f.key} defaultValue="" className={`${field} h-12 px-3 font-medium text-ink`}>
                   <option value="">-</option>
                   {f.options.map(o => <option key={o.value} value={o.value}>{o.label[lang]}</option>)}
                 </select>

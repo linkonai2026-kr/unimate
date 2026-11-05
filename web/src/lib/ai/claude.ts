@@ -6,16 +6,16 @@ import { LANGS, type Lang } from '../i18n'
 import { BUILDINGS } from '../map/buildings'
 import { RULE_IDS, RULES, type ModerationInput, type Verdict } from '../moderation'
 import type { TrMap } from '../types'
-import type { Apply, ParsedCourse, Summary } from './index'
+import type { Apply, MailDraft, MailInput, ParsedCourse, Summary } from './index'
 
 /** 대량·실시간 번역이라 일부러 싸고 빠른 모델을 쓴다 */
 const MODEL = 'claude-haiku-5-5'
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const CODES = LANGS.map(l => l.code) as [Lang, ...Lang[]]
-const LANG_NAMES = 'ko (Korean), en (English), vi (Vietnamese), zh (Simplified Chinese), uz (Uzbek, Latin script)'
+const LANG_NAMES = 'ko (Korean), en (English), vi (Vietnamese), zh (Simplified Chinese), uz (Uzbek, Latin script), ja (Japanese)'
 // 이름 안에 쉼표가 있어(uz) 목록 문자열을 쪼개지 않고 언어별로 따로 둔다
 const LANG_NAME: Record<Lang, string> = {
-  ko: 'Korean', en: 'English', vi: 'Vietnamese', zh: 'Simplified Chinese', uz: "Uzbek (Latin script, o'zbekcha)",
+  ko: 'Korean', en: 'English', vi: 'Vietnamese', zh: 'Simplified Chinese', uz: "Uzbek (Latin script, o'zbekcha)", ja: 'Japanese',
 }
 export const langName = (lang: Lang) => LANG_NAME[lang] ?? lang
 
@@ -30,14 +30,15 @@ export const getLastUsage = () => lastUsage
 /**
  * 고정 지시문은 system에 두고 cache_control로 캐시한다(프롬프트 캐시는 앞부분 일치라서 바뀌는 글·문맥은 user 쪽에).
  * Haiku 5.5는 512토큰 미만 앞부분은 캐시하지 않는다 → 짧은 지시문은 조용히 캐시 없이 돈다(오류·추가 비용 없음).
+ * ttl: 기본 5분. 자주 쓰이지만 간격이 5분을 넘기 쉬운 번역 지시문만 1시간(저장값 2배)으로 둔다.
  * 거절·토큰 한도·스키마 불일치면 예외를 내서 호출 쪽이 대역으로 넘어가게 한다.
  */
-async function ask<S extends z.ZodType>(schema: S, system: string, content: Anthropic.MessageParam['content'], effort: Effort, maxTokens: number, signal?: AbortSignal): Promise<z.infer<S>> {
+async function ask<S extends z.ZodType>(schema: S, system: string, content: Anthropic.MessageParam['content'], effort: Effort, maxTokens: number, signal?: AbortSignal, ttl: '5m' | '1h' = '5m'): Promise<z.infer<S>> {
   signal?.throwIfAborted()
   const res = await ai().messages.parse({
     model: MODEL,
     max_tokens: maxTokens,
-    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: system, cache_control: ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' } }],
     output_config: { effort, format: zodOutputFormat(schema) },
     messages: [{ role: 'user', content }],
   }, { signal })
@@ -47,15 +48,35 @@ async function ask<S extends z.ZodType>(schema: S, system: string, content: Anth
   return schema.parse(res.parsed_output)
 }
 
-/** 다섯 언어로 옮긴 결과가 잘리지 않을 만큼(글자 수 × 8, 최대 16000) */
-const outputBudget = (fields: Record<string, string>) => Math.min(16_000, 1_500 + Object.values(fields).join('').length * 8)
+/** 여섯 언어로 옮긴 결과가 잘리지 않을 만큼(글자 수 × 10, 최대 16000) */
+const outputBudget = (fields: Record<string, string>) => Math.min(16_000, 1_500 + Object.values(fields).join('').length * 10)
 
 /** 번역 effort */
 export const TRANSLATE_EFFORT: Effort = 'low'
 
-/** 캠퍼스 건물 이름 용어집(학교 공식 캠퍼스맵 기준 5개 언어). 번역마다 같은 이름을 쓰게 하고, 캐시 최소 길이도 넘긴다 */
-const GLOSSARY = BUILDINGS.map(b => `- ${[b.name, ...b.aliases].join(' / ')} = en: ${b.names.en}; vi: ${b.names.vi}; zh: ${b.names.zh}; uz: ${b.names.uz}`).join('\n')
+/** 캠퍼스 건물 이름 용어집(학교 공식 캠퍼스맵 기준, 한국어 외 다섯 언어). 번역마다 같은 이름을 쓰게 하고, 캐시 최소 길이도 넘긴다 */
+const GLOSSARY = BUILDINGS.map(b => `- ${[b.name, ...b.aliases].join(' / ')} = en: ${b.names.en}; vi: ${b.names.vi}; zh: ${b.names.zh}; uz: ${b.names.uz}; ja: ${b.names.ja}`).join('\n')
 
+/**
+ * 학생 은어 용어집. 일반 번역기는 "족보"를 family tree, "대출"을 loan, "꿀강"을 honey lecture로 옮긴다.
+ * 뜻을 영어로 적어 두고 언어마다 자연스러운 말로 풀게 한다(단어를 그대로 옮기지 않게)
+ */
+const SLANG = `Korean student slang. Translate the meaning, not the literal words (for example 족보 is never "family tree", 꿀강 is never "honey lecture").
+Always write the meaning in the target language. You may add the Korean word in Hangul in parentheses right after the meaning, like "past exam notes (족보)" or "往届试题和笔记（족보）". Never leave the Korean word on its own, and never write it with Chinese characters (族谱 and 族保 are wrong) or Latin letters:
+- 꿀강, 꿀교양 = an easy course with a light workload and generous grading (꿀교양: such a general-education course)
+- 족보 = past exam questions and notes passed down from senior students
+- 공강 = a free period between classes; 우주공강 = a very long gap between classes
+- 팀플, 조별과제 = a group project for a class
+- 휴강 = class cancelled; 보강 = make-up class
+- 출첵 = attendance check; 대출 (about attendance) = answering the roll call for an absent friend, not a loan
+- 수강신청 = course registration; 광클 = clicking as fast as possible when course registration opens; 정정기간 = add/drop period
+- 재수강 = retaking a course; 학고 = academic probation; 휴학 = leave of absence; 복학 = returning from leave
+- 과대 = class representative of a department year; 과방 = department student lounge; 동방 = club room
+- 개강 = start of semester; 종강 = end of semester; 개총, 종총 = department party at the start or end of semester; MT, 엠티 = overnight trip with a department or club
+- 새내기, 새기 = first-year student; 새터 = freshman orientation camp; 화석 = (joking) a student who has been at the university for many years
+- 학식 = school cafeteria meal; 긱사 = dormitory; 에타 = Everytime, the Korean campus community app
+- 졸작 = graduation project; 중간 = midterm exam; 기말 = final exam
+- 선배 = senior student; 후배 = junior student`
 /** 번역 고정 지시문(모든 요청에서 글자 하나 다르지 않아야 캐시가 맞는다) */
 export const TRANSLATE_SYSTEM = `You translate posts, comments and direct messages for Unimate, a campus community app where Korean and international students at Kangwon National University Samcheok Campus talk to each other.
 
@@ -67,7 +88,8 @@ Detect the language the text is written in, then translate every field into all 
 - When earlier messages are given, they are context only: do not translate or return them. Use them so the translation follows the conversation: pick the meaning that fits when a word is ambiguous (for example 차 can be "car" or "tea", 배 can be "boat", "pear" or "stomach", 눈 can be "snow" or "eye"), resolve omitted subjects, keep place, time and name wording consistent with earlier messages, and match the tone of the thread.
 
 Campus building names. Use exactly these names in each language (the Korean side lists the official name, then common short names students use):
-${GLOSSARY}`
+${GLOSSARY}
+${SLANG}`
 
 /** 번역 요청 본문: 앞선 대화(참고용) + 번역할 칸 */
 export function translateUser(fields: Record<string, string>, context: string[] = []): string {
@@ -84,7 +106,9 @@ export async function claudeTranslate(fields: Record<string, string>, context: s
   if (keys.length === 0) throw new Error('claude: nothing to translate')
   const fieldSchema = z.object(Object.fromEntries(keys.map(k => [k, z.string()])))
   const schema = z.object({ detected: z.enum(CODES), translations: z.object(Object.fromEntries(CODES.map(c => [c, fieldSchema]))) })
-  const out = await ask(schema, TRANSLATE_SYSTEM, translateUser(fields, context), effort, outputBudget(fields), signal)
+  // 글·댓글·쪽지는 5~60분씩 끊겨서 올라온다(밤·수업 시간). 5분 캐시면 끊길 때마다 지시문(약 3,600토큰)을 다시 저장하므로,
+  // 저장값은 2배여도 한 시간에 많아야 한 번인 1시간 캐시가 싸다(2026-11-06 실측: 캐시 저장 1건 0.63원, 적중 0.05원)
+  const out = await ask(schema, TRANSLATE_SYSTEM, translateUser(fields, context), effort, outputBudget(fields), signal, '1h')
   const tr: TrMap = {}
   for (const code of CODES) {
     const row = out.translations[code] as Record<string, string>
@@ -233,4 +257,37 @@ ${JSON.stringify(content)}`, 'low', 600, signal)
   // 위반이 아니면 규칙은 none, 위반인데 규칙이 none이면 위반으로 보지 않는다(애매하면 제재하지 않는 쪽)
   const violation = out.violation && out.rule !== 'none'
   return { violation, rule: violation ? out.rule : 'none', severity: out.severity, reason: out.reason.trim().slice(0, 300) }
+}
+
+/** 신청 메일 초안: 담당 부서에 보내는 정중한 한국어 메일 + 학생이 읽을 번역. 공지에 없는 사실은 지어내지 않는다 */
+export const MAIL_SYSTEM = `You write an email that an international student at a Korean university sends to the university office in charge of a notice.
+
+Write the email itself in polite, formal Korean (합쇼체), the way a Korean student writes to a staff member:
+- Greeting and self-introduction first: "안녕하세요. {학과} {학번} {이름}입니다." using only the student details given. Leave out any detail that is empty.
+- Then one or two short paragraphs: which notice it is about (use the notice title), and what the student wants. If the notice says to apply or submit by email, the email is the application: say the student is applying and that the listed documents are attached. Otherwise the email asks to apply or asks how to complete the application, and asks the office to confirm.
+- Mention the student's deadline and the documents only if the notice gives them. Never invent dates, documents, phone numbers, names of staff, links or facts that are not in the notice.
+- End with "감사합니다." and the student's name followed by " 드림".
+- Plain text, no markdown, under 900 characters. Subject: short, starting with "[문의]" or "[신청]" followed by the notice topic and the student's name.
+
+Then translate the subject and the body faithfully into the language the request asks for, so the student understands exactly what they are sending (if that language is Korean, repeat the Korean).`
+
+export async function claudeMail(input: MailInput, lang: Lang, signal?: AbortSignal): Promise<MailDraft> {
+  const schema = z.object({ subject: z.string(), body: z.string(), subjectTr: z.string(), bodyTr: z.string() })
+  const { notice: n, student: s } = input
+  const a = n.apply
+  const out = await ask(schema, MAIL_SYSTEM, `Translate into ${langName(lang)}.
+
+Student: 이름 ${s.name || '(없음)'} / 학과 ${s.major || '(없음)'} / 학번 ${s.studentId || '(없음)'}
+
+Notice title: ${n.title}
+Student deadline: ${n.deadline ?? '(none)'}
+How to apply: ${a?.how ?? '(unknown)'}${a?.where ? ` / submit to: ${a.where}` : ''}
+Documents: ${a?.documents.length ? a.documents.join(', ') : '(none listed)'}
+
+Notice body:
+${n.body.slice(0, 5000)}`, 'medium', 3000, signal)
+  const tidy = (v: string, max: number) => v.trim().slice(0, max)
+  const draft = { subject: tidy(out.subject, 120), body: tidy(out.body, 1500), subjectTr: tidy(out.subjectTr, 200), bodyTr: tidy(out.bodyTr, 2500) }
+  if (!draft.subject || !draft.body) throw new Error('claude: empty mail')
+  return draft
 }

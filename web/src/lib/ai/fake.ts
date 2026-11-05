@@ -3,7 +3,7 @@ import { LANGS, type Lang } from '../i18n'
 import type { ModerationInput, RuleId, Verdict } from '../moderation'
 import { DEMO_TR } from '../store/seed'
 import type { TrMap } from '../types'
-import type { Summary } from './index'
+import type { MailDraft, MailInput, Summary } from './index'
 
 export { SAMPLE_TIMETABLE } from '../timetable/sample'
 
@@ -71,4 +71,53 @@ ${input.body}`.toLowerCase()
   return hit
     ? { violation: true, rule: hit[1], severity: 'high', reason: 'Matched a banned word (offline moderator).' }
     : { violation: false, rule: 'none', severity: 'low', reason: 'No banned word (offline moderator).' }
+}
+
+/**
+ * 키 없이(또는 AI 실패 때) 쓰는 신청 메일 틀: 공지 제목·마감·준비물과 학생 정보만으로 한국어 메일을 쓰고,
+ * 같은 내용을 학생 언어로 옮긴 틀을 붙인다. 공지에 없는 사실은 넣지 않는다
+ */
+export function fakeMail({ notice: n, student: s }: MailInput, lang: Lang): MailDraft {
+  const byMail = n.apply?.how === 'email'
+  const docs = n.apply?.documents ?? []
+  const who = [s.major, s.studentId, s.name].filter(Boolean).join(' ')
+  const name = s.name || who || '학생'
+  const ko = {
+    subject: `[${byMail ? '신청' : '문의'}] ${n.title}${s.name ? ` - ${s.name}` : ''}`,
+    body: [
+      `안녕하세요.${who ? ` ${who}입니다.` : ''}`,
+      '',
+      `「${n.title}」 공지를 보고 ${byMail ? '신청합니다.' : '신청하고자 연락드립니다.'}`,
+      ...(n.deadline ? [`마감(${n.deadline}) 전에 처리하고 싶습니다.`] : []),
+      ...(docs.length ? [`${byMail ? '첨부한 서류' : '준비한 서류'}: ${docs.join(', ')}`] : []),
+      byMail ? '확인 부탁드립니다.' : '신청 방법이나 추가로 필요한 것이 있으면 알려 주시면 감사하겠습니다.',
+      '',
+      '감사합니다.',
+      `${name} 드림`,
+    ].join('\n'),
+  }
+  if (lang === 'ko') return { ...ko, subjectTr: ko.subject, bodyTr: ko.body }
+  const L: Record<Exclude<Lang, 'ko'>, { hi: string; me: (w: string) => string; about: (t: string) => string; apply: string; ask: string; due: (d: string) => string; docs: string; check: string; more: string; thanks: string; subj: string }> = {
+    en: { hi: 'Hello.', me: w => `I am ${w}.`, about: t => `I saw the notice "${t}"`, apply: 'and I am applying.', ask: 'and I am writing to apply.', due: d => `I would like to finish this before the deadline (${d}).`, docs: 'Documents', check: 'Please check it.', more: 'Please let me know how to apply or if anything else is needed.', thanks: 'Thank you.', subj: byMail ? 'Application' : 'Inquiry' },
+    vi: { hi: 'Xin chào.', me: w => `Em là ${w}.`, about: t => `Em đã xem thông báo "${t}"`, apply: 'và em xin đăng ký.', ask: 'và em liên hệ để đăng ký.', due: d => `Em muốn hoàn thành trước hạn chót (${d}).`, docs: 'Hồ sơ', check: 'Mong thầy/cô kiểm tra giúp em.', more: 'Mong thầy/cô cho em biết cách đăng ký hoặc cần thêm gì.', thanks: 'Em cảm ơn.', subj: byMail ? 'Đăng ký' : 'Hỏi' },
+    zh: { hi: '您好。', me: w => `我是${w}。`, about: t => `我看到了「${t}」的通知，`, apply: '现提出申请。', ask: '想联系您进行申请。', due: d => `希望在截止日期（${d}）前完成。`, docs: '材料', check: '请您确认。', more: '如需了解申请方法或还需要其他材料，请告诉我。', thanks: '谢谢。', subj: byMail ? '申请' : '咨询' },
+    ja: { hi: 'こんにちは。', me: w => `${w}です。`, about: t => `「${t}」のお知らせを見て、`, apply: '申請いたします。', ask: '申請についてご連絡いたしました。', due: d => `締め切り（${d}）までに手続きを済ませたいと思います。`, docs: '書類', check: 'ご確認をお願いいたします。', more: '申請方法や追加で必要なものがあれば教えていただけると幸いです。', thanks: 'よろしくお願いいたします。', subj: byMail ? '申請' : 'お問い合わせ' },
+    uz: { hi: 'Assalomu alaykum.', me: w => `Men ${w}.`, about: t => `"${t}" e'lonini ko'rdim`, apply: 'va ariza topshiraman.', ask: 'va ariza topshirish uchun murojaat qilyapman.', due: d => `Muddatgacha (${d}) bajarmoqchiman.`, docs: 'Hujjatlar', check: "Iltimos, tekshirib ko'ring.", more: "Ariza tartibi yoki yana nima kerakligini aytsangiz, minnatdor bo'lardim.", thanks: 'Rahmat.', subj: byMail ? 'Ariza' : "So'rov" },
+  }
+  const x = L[lang]
+  return {
+    ...ko,
+    subjectTr: `[${x.subj}] ${n.title}${s.name ? ` - ${s.name}` : ''}`,
+    bodyTr: [
+      `${x.hi}${who ? ` ${x.me(who)}` : ''}`,
+      '',
+      `${x.about(n.title)} ${byMail ? x.apply : x.ask}`,
+      ...(n.deadline ? [x.due(n.deadline)] : []),
+      ...(docs.length ? [`${x.docs}: ${docs.join(', ')}`] : []),
+      byMail ? x.check : x.more,
+      '',
+      x.thanks,
+      name,
+    ].join('\n'),
+  }
 }

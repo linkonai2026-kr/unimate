@@ -1,5 +1,5 @@
 // 내 정보: 프로필 카드, 내 활동 바로가기, 계정·앱 설정·커뮤니티 메뉴, 로그아웃
-import { BookmarkSimple, ChatCircleText, Globe, IdentificationCard, Key, NotePencil, PencilSimple, ShieldCheck, SignOut, Translate } from '@phosphor-icons/react/dist/ssr'
+import { BookmarkSimple, ChatCircleText, FileText, Globe, IdentificationCard, Key, LockKey, NotePencil, PencilSimple, ShieldCheck, SignOut, Translate } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import { logout } from '@/app/auth-actions'
 import Avatar from '@/components/Avatar'
@@ -37,7 +37,7 @@ export default async function MePage() {
         {ACTIVITY.map(([tab, key, Icon, tone]) => (
           <Link key={tab} href={`/me/activity?tab=${tab}`} className="press flex flex-col items-center gap-2 rounded-2xl py-1">
             <IconBox tone={tone} size={48}><Icon size={24} weight="fill" aria-hidden /></IconBox>
-            <span className="text-[13px] font-medium">{t(lang, key)}</span>
+            <span className="px-0.5 text-center text-[13px] font-medium leading-tight">{t(lang, key)}</span>
           </Link>
         ))}
       </section>
@@ -59,6 +59,8 @@ export default async function MePage() {
       <Section title={t(lang, 'community')}>
         <ul className="pb-2">
           <li><Row href="/rules" icon={<IconBox tone="gray"><ShieldCheck size={22} aria-hidden /></IconBox>} title={t(lang, 'rules')} /></li>
+          <li><Row href="/terms" icon={<IconBox tone="gray"><FileText size={22} aria-hidden /></IconBox>} title={t(lang, 'terms')} /></li>
+          <li><Row href="/privacy" icon={<IconBox tone="gray"><LockKey size={22} aria-hidden /></IconBox>} title={t(lang, 'privacy')} /></li>
         </ul>
       </Section>
 

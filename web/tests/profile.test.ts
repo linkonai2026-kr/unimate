@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { cleanProfilePatch, checkPasswordChange, isDemoAccount } from '@/lib/profile'
-import { nationName } from '@/lib/nations'
+import { nationLabel, nationName } from '@/lib/nations'
 import { createMemoryStore } from '@/lib/store/memory'
 
 describe('cleanProfilePatch', () => {
@@ -69,5 +69,13 @@ describe('isDemoAccount', () => {
   it('시드 데모 계정(u-)만 데모로 본다', () => {
     expect(isDemoAccount({ id: 'u-wei' })).toBe(true)
     expect(isDemoAccount({ id: 'a1b2c3' })).toBe(false)
+  })
+})
+
+describe('nationLabel', () => {
+  it('국적 칸 글자는 국기 이모지와 이름, 기타는 지구본', () => {
+    expect(nationLabel('VN', 'vi')).toBe('🇻🇳 Việt Nam')
+    expect(nationLabel('KR', 'ko')).toBe('🇰🇷 대한민국')
+    expect(nationLabel('XX', 'en')).toBe('🌐 Other')
   })
 })

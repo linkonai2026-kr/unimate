@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* 자주 쓰지 않는 한글(KS X 1001 2,350자 밖, 예: 똠·뷁)과 옛한글 자모. 앞 글꼴에 없는 글자가 나올 때만 내려받는다 */
+@font-face {
+  font-family: "Pretendard Rare Hangul";
+  src: url("../fonts/PretendardRareHangul.woff2") format("woff2");
+  font-weight: 45 920;
+  font-display: swap;
+  unicode-range: U+AC00-D7A3, U+1100-11FF, U+A960-A97F, U+D7B0-D7FF;
+}
+
 /* 앱 색·글꼴 토큰(Tailwind 색 이름으로도 쓴다) */
 :root {
   --navy: #011d48;
@@ -35,10 +44,12 @@
   --color-danger: var(--danger);
   --color-teal: var(--teal);
   --color-star: var(--star);
-  --font-sans: var(--font-pretendard), -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --font-sans: var(--font-pretendard), "Pretendard Rare Hangul", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 }
 
 html, body { background: var(--bg-soft); color: var(--ink); }
+/* 두 번 탭 확대와 iOS 300ms 지연을 없앤다(손가락 벌려 확대는 그대로). 지도는 Leaflet이 따로 다룬다 */
+html { touch-action: manipulation; }
 /* 한국어는 어절 단위로 줄을 바꾸되(keep-all), 띄어쓰기 없는 중국어 문장·긴 주소는 칸을 넘지 않게 끊는다 */
 body { font-family: var(--font-sans); letter-spacing: -0.01em; word-break: keep-all; overflow-wrap: break-word; -webkit-tap-highlight-color: transparent; }
 :lang(zh), :lang(ja) { word-break: normal; }
@@ -65,8 +76,11 @@ body { font-family: var(--font-sans); letter-spacing: -0.01em; word-break: keep-
 }
 
 /* 지도 건물 이름표: 작고 또렷하게, 고른 건물은 청록 */
-.leaflet-tooltip.pin-label { padding: 3px 7px; border: 0; border-radius: 8px; font: 700 11px/1.2 var(--font-sans, system-ui); color: var(--navy); box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+.leaflet-tooltip.pin-label { padding: 8px 10px; border: 0; border-radius: 8px; font: 700 11px/1.2 var(--font-sans, system-ui); color: var(--navy); box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
 .leaflet-tooltip.pin-label-on { background: var(--teal); color: #fff; font-size: 13px; }
 .leaflet-tooltip.pin-label-on::before { border-top-color: var(--teal); }
 /* 건물 이름표: 멀리서 보면 27개가 겹쳐서 점만 보이고, 가까이 가거나 고른 건물은 이름을 띄운다 */
 .labels-far .leaflet-tooltip.pin-label:not(.pin-label-on), .labels-far .kpin-label { display: none; }
+/* 지도 종류 고르기 목록: 손가락으로 고르기 쉽게 줄을 키운다 */
+.leaflet-control-layers-expanded label { padding-block: 10px; }
+.leaflet-control-layers-selector { width: 20px; height: 20px; margin-right: 8px; }

@@ -36,7 +36,7 @@ export default async function BoardPage({ params }: PageProps<'/board/[id]'>) {
           : views.map(p => <PostCard key={p.id} p={p} lang={lang} showBoard={!real} />)}
       </div>
       {real && (
-        <Link href={`/write/${encodeURIComponent(real.id)}`} className="press fixed bottom-[80px] left-1/2 z-10 flex h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-navy px-6 text-[15px] font-bold text-white shadow-[0_8px_24px_-6px_rgba(1,29,72,.45)]">
+        <Link href={`/write/${encodeURIComponent(real.id)}`} className="press fixed bottom-[calc(80px+env(safe-area-inset-bottom))] left-1/2 z-10 flex h-12 -translate-x-1/2 items-center gap-2 rounded-full bg-navy px-6 text-[15px] font-bold text-white shadow-[0_8px_24px_-6px_rgba(1,29,72,.45)]">
           <PencilSimple size={18} weight="bold" aria-hidden />{t(lang, 'write')}
         </Link>
       )}

@@ -9,7 +9,7 @@ import { dDayOf } from '@/lib/deadlines/when'
 import { t, type Lang } from '@/lib/i18n'
 import type { Profile } from '@/lib/types'
 
-const chip = 'press inline-flex h-9 items-center gap-1 rounded-xl bg-bg-soft px-3 text-[13px] font-semibold text-ink'
+const chip = 'press inline-flex min-h-11 items-center gap-1 rounded-xl bg-bg-soft px-3 text-[13px] font-semibold text-ink'
 
 function OpenTask({ task, lang }: { task: DeadlineTask; lang: Lang }) {
   const a = task.apply
@@ -24,7 +24,7 @@ function OpenTask({ task, lang }: { task: DeadlineTask; lang: Lang }) {
           <span className={`mt-0.5 shrink-0 rounded-lg px-2 py-1 text-[12px] font-bold ${urgent ? 'bg-danger text-white' : 'bg-danger/10 text-danger'}`}>{dday ?? task.deadline}</span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-bold leading-snug">{task.title}</p>
+          <Link href={`/deadlines/${task.id}`} className="press block text-[16px] font-bold leading-snug">{task.title}</Link>
           <p className="mt-0.5 text-[13px] text-muted">
             {[task.deadline && `${t(lang, 'deadline')} ${task.deadline}`, a && t(lang, HOW_KEY[a.how]), a?.where].filter(Boolean).join(' · ')}
           </p>
@@ -37,8 +37,8 @@ function OpenTask({ task, lang }: { task: DeadlineTask; lang: Lang }) {
             return (
               <li key={i}>
                 <form action={toggleTaskItem.bind(null, task.id, i)}>
-                  <button aria-pressed={on} className={`tap flex w-full items-center gap-2 rounded-lg py-1 text-left text-[14px] ${on ? 'text-muted line-through' : ''}`}>
-                    {on ? <CheckSquare size={20} weight="fill" className="shrink-0 text-teal" aria-hidden /> : <Square size={20} className="shrink-0 text-muted" aria-hidden />}{d}
+                  <button aria-pressed={on} className={`tap flex min-h-11 w-full items-center gap-2 rounded-lg py-2 text-left text-[14px] ${on ? 'text-muted line-through' : ''}`}>
+                    {on ? <CheckSquare size={20} weight="fill" className="shrink-0 text-teal" aria-hidden /> : <Square size={20} className="shrink-0 text-muted" aria-hidden />}<span className="min-w-0 flex-1 text-left">{d}</span>
                   </button>
                 </form>
               </li>
@@ -51,7 +51,7 @@ function OpenTask({ task, lang }: { task: DeadlineTask; lang: Lang }) {
         {route && <Link href={route} className={chip}><NavigationArrow size={16} aria-hidden />{t(lang, 'routeToOffice')}</Link>}
         {a?.url && <a href={a.url} target="_blank" rel="noopener noreferrer" className={chip}>{t(lang, 'openApplyPage')}<ArrowSquareOut size={14} aria-hidden /></a>}
         <form action={setTaskDone.bind(null, task.id, true)}><button className={`${chip} text-teal`}><CheckCircle size={16} weight="fill" aria-hidden />{t(lang, 'markDone')}</button></form>
-        <form action={removeTask.bind(null, task.id)}><button aria-label={t(lang, 'removeDeadline')} className={`${chip} text-muted`}><Trash size={16} aria-hidden /></button></form>
+        <form action={removeTask.bind(null, task.id)}><button aria-label={t(lang, 'removeDeadline')} className={`${chip} h-11 w-11 justify-center px-0 text-muted`}><Trash size={16} aria-hidden /></button></form>
       </div>
     </li>
   )
@@ -72,11 +72,11 @@ export default async function MyDeadlines({ me }: { me: Profile }) {
       {done.length > 0 && (
         <ul className="border-t border-line/70 pb-2">
           {done.map(task => (
-            <li key={task.id} className="flex items-center gap-2 px-5 py-2 text-[14px] text-muted">
+            <li key={task.id} className="flex items-center gap-1 py-0.5 pl-5 pr-2 text-[14px] text-muted">
               <CheckCircle size={18} weight="fill" className="shrink-0 text-teal" aria-hidden />
               <span className="min-w-0 flex-1 truncate line-through">{task.title}</span>
-              <form action={setTaskDone.bind(null, task.id, false)}><button className="press text-[13px] font-semibold">{t(lang, 'undoDone')}</button></form>
-              <form action={removeTask.bind(null, task.id)}><button aria-label={t(lang, 'removeDeadline')} className="press p-1"><Trash size={16} aria-hidden /></button></form>
+              <form action={setTaskDone.bind(null, task.id, false)}><button className="press inline-flex h-11 shrink-0 items-center whitespace-nowrap px-2 text-[13px] font-semibold">{t(lang, 'undoDone')}</button></form>
+              <form action={removeTask.bind(null, task.id)}><button aria-label={t(lang, 'removeDeadline')} className="press inline-flex h-11 w-11 shrink-0 items-center justify-center"><Trash size={16} aria-hidden /></button></form>
             </li>
           ))}
         </ul>

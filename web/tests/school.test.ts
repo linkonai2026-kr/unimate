@@ -171,7 +171,7 @@ describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)'
     expect(r.items).toHaveLength(3)
     expect(r.items[0]).toMatchObject({ titleTr: r.items[0].title, bullets: [], excerpt: '' })
   })
-  it('공지는 하루 한 번 다섯 언어로 미리 만들고, 화면은 저장본만 읽는다(요청 때 AI 호출 없음)', async () => {
+  it('공지는 하루 한 번 여섯 언어로 미리 만들고, 화면은 저장본만 읽는다(요청 때 AI 호출 없음)', async () => {
     vi.doMock('server-only', () => ({}))
     schoolSite()
     const ai = fakeAi()
@@ -181,8 +181,8 @@ describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)'
     const n = snaps.ko.items.length
     expect(n).toBeGreaterThan(0)
     expect(n).toBeLessThanOrEqual(NOTICE_LIMIT)
-    expect(ai.summarizeNotice).toHaveBeenCalledTimes(n * 5)
-    expect(ai.translateList).toHaveBeenCalledTimes(Math.ceil(n / 4) * 4) // 한국어 빼고 언어마다 제목을 4개씩 한 번
+    expect(ai.summarizeNotice).toHaveBeenCalledTimes(n * 6)
+    expect(ai.translateList).toHaveBeenCalledTimes(Math.ceil(n / 4) * 5) // 한국어 빼고 언어마다 제목을 4개씩 한 번
     const before = ai.summarizeNotice.mock.calls.length
     const r = await noticeCards('academic', 'vi', 3)
     expect(r.items[0]).toMatchObject({ titleTr: `vi:${r.items[0].title}`, bullets: [`vi:${r.items[0].title}`], deadline: '11/17 18:00' })
@@ -234,7 +234,7 @@ describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)'
     const { buildMenu } = await import('@/lib/school/prebuilt')
     const { menuView } = await import('@/lib/school/service')
     expect(await buildMenu()).toBe(true)
-    expect(ai.translateList).toHaveBeenCalledTimes(4)
+    expect(ai.translateList).toHaveBeenCalledTimes(5)
     const fetches = fetchMock.mock.calls.length
     const [en, ko] = await Promise.all([menuView('en'), menuView('ko')])
     expect(en.week?.tr['덮밥류']).toBe('en:덮밥류')
@@ -242,9 +242,9 @@ describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)'
     expect(ko.week?.days[0]).toBe('10.19(월)')
     await menuView('vi')
     expect(fetchMock.mock.calls.length - fetches).toBe(1) // 세 화면이 한 번 받은 식단을 같이 쓴다
-    expect(ai.translateList).toHaveBeenCalledTimes(4) // 화면을 열어도 번역 호출 없음
+    expect(ai.translateList).toHaveBeenCalledTimes(5) // 화면을 열어도 번역 호출 없음
     expect(await buildMenu()).toBe(true)
-    expect(ai.translateList).toHaveBeenCalledTimes(4) // 사전에 있는 이름은 다시 번역하지 않는다
+    expect(ai.translateList).toHaveBeenCalledTimes(5) // 사전에 있는 이름은 다시 번역하지 않는다
   })
   it('사전이 없으면 메뉴 이름은 원문 그대로 보여 준다', async () => {
     vi.doMock('server-only', () => ({}))
