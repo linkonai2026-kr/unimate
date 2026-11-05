@@ -3,7 +3,9 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 
-const pretendard = localFont({ src: "../fonts/PretendardVariable.woff2", variable: "--font-pretendard", weight: "45 920", display: "swap" });
+// 원본 Pretendard(2MB)에서 라틴·베트남어·키릴·기호와 자주 쓰는 한글 2,350자(KS X 1001)만 남긴 파일(0.66MB).
+// 나머지 한글은 globals.css의 "Pretendard Rare Hangul"이 그 글자가 화면에 나올 때만 받는다
+const pretendard = localFont({ src: "../fonts/PretendardCore.woff2", variable: "--font-pretendard", weight: "45 920", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Unimate",
