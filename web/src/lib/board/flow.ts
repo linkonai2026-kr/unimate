@@ -1,5 +1,5 @@
 // 글·댓글·쪽지·평가를 저장하고, 응답 후에 번역(글·댓글은 AI 검수도)해 다시 알리는 공통 흐름과 화면용 변환
-import { t, type Lang } from '../i18n'
+import { LANGS, t, type Lang } from '../i18n'
 import { reviewContent, type ModerationDeps } from '../moderation'
 import type { NewComment, NewPost, Store, TrKind } from '../store/types'
 import { pickText } from '../text'
@@ -41,9 +41,30 @@ export function cleanInput(v: unknown, max: number, multiline = false): string {
   return s.replace(/[\ud800-\udbff]$/, '').trim()
 }
 
-/** 응답 뒤에 번역 → 저장 → 'tr' 이벤트. 실패하면 원문 그대로 둔다(“번역 중” 표시는 1분 뒤 사라짐) */
-export function translateLater(d: FlowDeps, kind: TrKind, id: string, fields: Record<string, string>, topics: string[], context: () => Promise<string[]> = async () => []) {
+/** 번역해도 그대로인 글자: 주소, 이모지, 숫자, 기호·문장부호, 공백, 웃음·울음 자모(ㅋ ㅎ ㅠ ㅜ). ㅇㅋ·ㄱㄱ·ㅇㅈ처럼 뜻이 있는 자모는 AI가 풀어 준다 */
+const NO_WORDS = /https?:\/\/\S+|[\p{Extended_Pictographic}\p{Emoji_Component}\p{N}\p{P}\p{S}\p{Z}\s‍️ㅋㅎㅠㅜ]/gu
+/** 번역할 낱말이 하나도 없는 글인지("ㅋㅋㅋ", "👍👍", "!!!", 주소만) */
+export const nothingToTranslate = (fields: Record<string, string>) =>
+  Object.values(fields).some(v => v.trim()) && Object.values(fields).every(v => !v.replace(NO_WORDS, ''))
+
+/**
+ * 응답 뒤에 번역 → 저장 → 'tr' 이벤트. 실패하면 원문 그대로 둔다(“번역 중” 표시는 1분 뒤 사라짐).
+ * lang(작성자 언어)을 주면, 번역할 낱말이 없는 글은 AI를 부르지 않고 언어마다 빈 번역을 저장한다
+ * → 모든 사람에게 원문이 "번역 중" 없이 바로 보인다(비용 0, 기다림 0)
+ */
+export function translateLater(d: FlowDeps, kind: TrKind, id: string, fields: Record<string, string>, topics: string[], context: () => Promise<string[]> = async () => [], lang?: Lang) {
   if (!Object.values(fields).some(v => v.trim())) return
+  if (lang && nothingToTranslate(fields)) {
+    d.defer(async () => {
+      try {
+        await d.store.setTr(kind, id, Object.fromEntries(LANGS.map(l => [l.code, {}])) as TrMap, lang)
+        await Promise.all(topics.map(topic => d.publish({ topic, kind: 'tr', id })))
+      } catch (e) {
+        console.warn(`[translateLater] ${kind} ${id}:`, e instanceof Error ? e.message : e)
+      }
+    })
+    return
+  }
   d.defer(async () => {
     try {
       const { detected, tr } = await d.translate(fields, await context())
@@ -59,7 +80,7 @@ export async function createPostWithTranslation(d: FlowDeps, input: NewPost): Pr
   const post = await d.store.createPost(input)
   const topics = [`board:${post.board}`, 'board:all']
   for (const topic of topics) await d.publish({ topic, kind: 'new', id: post.id })
-  translateLater(d, 'post', post.id, { title: post.title, body: post.body }, [...topics, `post:${post.id}`])
+  translateLater(d, 'post', post.id, { title: post.title, body: post.body }, [...topics, `post:${post.id}`], undefined, post.lang)
   moderateLater(d, 'post', post.id)
   return post
 }
@@ -72,7 +93,7 @@ export async function createCommentWithTranslation(d: FlowDeps, input: NewCommen
     const [post, all] = await Promise.all([d.store.getPost(c.postId), d.store.listComments(c.postId)])
     const idx = all.findIndex(x => x.id === c.id)
     return commentContext(post, idx > 0 ? all.slice(0, idx) : [])
-  })
+  }, c.lang)
   moderateLater(d, 'comment', c.id)
   return c
 }

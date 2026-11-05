@@ -30,14 +30,15 @@ export const getLastUsage = () => lastUsage
 /**
  * 고정 지시문은 system에 두고 cache_control로 캐시한다(프롬프트 캐시는 앞부분 일치라서 바뀌는 글·문맥은 user 쪽에).
  * Haiku 5.5는 512토큰 미만 앞부분은 캐시하지 않는다 → 짧은 지시문은 조용히 캐시 없이 돈다(오류·추가 비용 없음).
+ * ttl: 기본 5분. 자주 쓰이지만 간격이 5분을 넘기 쉬운 번역 지시문만 1시간(저장값 2배)으로 둔다.
  * 거절·토큰 한도·스키마 불일치면 예외를 내서 호출 쪽이 대역으로 넘어가게 한다.
  */
-async function ask<S extends z.ZodType>(schema: S, system: string, content: Anthropic.MessageParam['content'], effort: Effort, maxTokens: number, signal?: AbortSignal): Promise<z.infer<S>> {
+async function ask<S extends z.ZodType>(schema: S, system: string, content: Anthropic.MessageParam['content'], effort: Effort, maxTokens: number, signal?: AbortSignal, ttl: '5m' | '1h' = '5m'): Promise<z.infer<S>> {
   signal?.throwIfAborted()
   const res = await ai().messages.parse({
     model: MODEL,
     max_tokens: maxTokens,
-    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: system, cache_control: ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' } }],
     output_config: { effort, format: zodOutputFormat(schema) },
     messages: [{ role: 'user', content }],
   }, { signal })
@@ -105,7 +106,9 @@ export async function claudeTranslate(fields: Record<string, string>, context: s
   if (keys.length === 0) throw new Error('claude: nothing to translate')
   const fieldSchema = z.object(Object.fromEntries(keys.map(k => [k, z.string()])))
   const schema = z.object({ detected: z.enum(CODES), translations: z.object(Object.fromEntries(CODES.map(c => [c, fieldSchema]))) })
-  const out = await ask(schema, TRANSLATE_SYSTEM, translateUser(fields, context), effort, outputBudget(fields), signal)
+  // 글·댓글·쪽지는 5~60분씩 끊겨서 올라온다(밤·수업 시간). 5분 캐시면 끊길 때마다 지시문(약 3,600토큰)을 다시 저장하므로,
+  // 저장값은 2배여도 한 시간에 많아야 한 번인 1시간 캐시가 싸다(2026-11-06 실측: 캐시 저장 1건 0.63원, 적중 0.05원)
+  const out = await ask(schema, TRANSLATE_SYSTEM, translateUser(fields, context), effort, outputBudget(fields), signal, '1h')
   const tr: TrMap = {}
   for (const code of CODES) {
     const row = out.translations[code] as Record<string, string>
