@@ -83,3 +83,18 @@ test('학식 화면 제목은 "내 정보"가 아니다', async ({ page }) => {
   await page.goto('/menu')
   await expect(page.locator('header')).not.toContainText('내 정보')
 })
+
+test('가입 화면: 국적을 바꾸면 언어가 따라가고, 언어를 직접 고르면 국적을 바꿔도 지킨다', async ({ page }) => {
+  await page.goto('/signup')
+  const nation = page.locator('select[name="nationality"]')
+  const lang = page.locator('select[name="lang"]')
+  await nation.selectOption('UZ')
+  await expect(lang).toHaveValue('uz')
+  await lang.selectOption('zh')
+  await nation.selectOption('VN')
+  await expect(lang).toHaveValue('zh')
+  // 위의 화면 언어 버튼을 누르면 다시 그 언어에 맞춘다
+  await page.getByRole('link', { name: 'Tiếng Việt' }).click()
+  await expect(nation).toHaveValue('VN')
+  await expect(lang).toHaveValue('vi')
+})

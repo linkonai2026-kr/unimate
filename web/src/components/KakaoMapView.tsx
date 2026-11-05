@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import type { LatLng } from '@/lib/map/buildings'
 import { accuracyRadius } from '@/lib/map/route'
+import { aimCone, ME_HTML } from './mapMarkers'
 import type { Pin } from './MapView'
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
   follow?: boolean; startLabel?: string; endLabel?: string; onPick: (id: string) => void
   /** GPS 정확도(m). 내 위치 둘레의 파란 원 크기 */ accuracy?: number
   /** 값이 바뀔 때마다 내 위치로 지도를 옮긴다(위치가 아직 없으면 잡히는 대로) */ recenter?: number
+  /** 휴대폰이 바라보는 방향(0 = 북쪽). 있으면 내 위치에 방향 부채꼴을 그린다 */ heading?: number | null
   /** SDK를 못 불러왔을 때(도메인 미등록·차단·네트워크). 부모가 Leaflet 지도로 바꾼다 */ onFail?: () => void
 }
 
@@ -50,7 +52,7 @@ const el = (html: string) => { const d = document.createElement('div'); d.innerH
 const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 const tag = (text: string, bg: string) => `<span style="display:inline-block;white-space:nowrap;background:${bg};color:#fff;font:700 12px/1 system-ui;padding:6px 9px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.3)">${esc(text)}</span>`
 
-export default function KakaoMapView({ appKey, center, pins, selected, route, me, follow, startLabel = 'Start', endLabel = 'End', onPick, accuracy, recenter = 0, onFail }: Props) {
+export default function KakaoMapView({ appKey, center, pins, selected, route, me, follow, startLabel = 'Start', endLabel = 'End', onPick, accuracy, recenter = 0, onFail, heading }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<Kakao>(null)
   const sdk = useRef<Kakao>(null)
@@ -58,6 +60,9 @@ export default function KakaoMapView({ appKey, center, pins, selected, route, me
   const pick = useRef(onPick)
   const failed = useRef(onFail)
   useEffect(() => { pick.current = onPick; failed.current = onFail })
+  const cone = useRef<HTMLElement | null>(null)
+  const aim = useRef(heading)
+  useEffect(() => { aim.current = heading; aimCone(cone.current, heading) }, [heading])
 
   const draw = useRef(() => {})
   const fit = useRef(() => {})
@@ -88,7 +93,10 @@ export default function KakaoMapView({ appKey, center, pins, selected, route, me
     }
     if (me) {
       add(new k.maps.Circle({ center: ll(me), radius: accuracyRadius(accuracy), strokeWeight: 0, fillColor: '#3b82f6', fillOpacity: 0.18 }))
-      add(new k.maps.CustomOverlay({ position: ll(me), content: el('<span style="display:block;width:16px;height:16px;border-radius:50%;border:3px solid #fff;background:#3b82f6;box-shadow:0 1px 4px rgba(0,0,0,.3)"></span>'), zIndex: 5 }))
+      const node = el(ME_HTML)
+      cone.current = node.querySelector<HTMLElement>('[data-cone]')
+      aimCone(cone.current, aim.current)
+      add(new k.maps.CustomOverlay({ position: ll(me), content: node, zIndex: 5 }))
     }
   } })
 

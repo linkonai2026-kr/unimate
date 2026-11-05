@@ -83,3 +83,15 @@ test('홈 다음 수업 카드에 강의실 위치·작은 지도·길찾기가 
   await expect(page.locator('section').first().locator('img[src*="World_Imagery"]').first()).toBeVisible()
   await expect(page.locator('section').first().getByText(/\d층 \d+호/)).toBeVisible()
 })
+
+test('시간표가 없어도 홈의 자주 찾는 곳을 누르면 바로 길찾기가 시작된다', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByRole('button', { name: 'Linh' }).click()
+  await page.waitForURL('/')
+  await expect(page.getByRole('heading', { name: /Địa điểm hay tìm/ })).toBeVisible()
+  let routeUrl = ''
+  page.on('request', r => { if (r.url().includes('/api/route')) routeUrl = r.url() })
+  await page.getByRole('link', { name: 'Thư viện', exact: true }).click()
+  await page.waitForURL(/\/map\?b=library&go=1/)
+  await expect.poll(() => routeUrl, { timeout: 30_000 }).toContain('to=')
+})

@@ -66,10 +66,13 @@ export function SignupForm({ lang, nations, next }: { lang: Lang; nations: [stri
   const [nation, setNation] = useState<string>(v?.nationality ?? DEFAULT_NATION[lang])
   // 위의 화면 언어 버튼을 누르면(?lang= 이동, 입력한 값은 그대로) 국적·사용 언어도 그 언어에 맞춰 바로 바꾼다
   const [shownLang, setShownLang] = useState<Lang>(lang)
+  // 사용 언어를 직접 고른 뒤에는 국적을 바꿔도 그 언어를 지킨다(위의 화면 언어 버튼을 누르면 다시 처음처럼 맞춘다)
+  const [langPicked, setLangPicked] = useState(isLang(v?.lang) && v.lang !== langForNation(v?.nationality ?? DEFAULT_NATION[lang]))
   if (shownLang !== lang) {
     setShownLang(lang)
     setUserLang(lang)
     setNation(DEFAULT_NATION[lang])
+    setLangPicked(false)
   }
   return (
     <form action={action} className="space-y-4">
@@ -91,12 +94,12 @@ export function SignupForm({ lang, nations, next }: { lang: Lang; nations: [stri
       <div className="grid grid-cols-2 gap-3">
         <label className={label}>{t(lang, 'nationality')}
           {/* 국적을 고르면 그 나라 언어를 미리 골라 준다(언어는 그 뒤에 따로 바꿀 수 있다) */}
-          <select name="nationality" className={field} value={nation} onChange={e => { setNation(e.target.value); setUserLang(langForNation(e.target.value)) }}>
+          <select name="nationality" className={field} value={nation} onChange={e => { setNation(e.target.value); if (!langPicked) setUserLang(langForNation(e.target.value)) }}>
             {nations.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </label>
         <label className={label}>{t(lang, 'language')}
-          <select name="lang" className={field} value={userLang} onChange={e => setUserLang(isLang(e.target.value) ? e.target.value : lang)}>
+          <select name="lang" className={field} value={userLang} onChange={e => { setLangPicked(true); setUserLang(isLang(e.target.value) ? e.target.value : lang) }}>
             {LANGS.map(l => <option key={l.code} value={l.code} lang={l.code}>{l.label}</option>)}
           </select>
         </label>

@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react'
 import type * as Leaflet from 'leaflet'
 import type { LatLng } from '@/lib/map/buildings'
 import { accuracyRadius } from '@/lib/map/route'
+import { aimCone, ME_HTML } from './mapMarkers'
 
 /** no: 가이드북 안내도 건물 번호 */
 export type Pin = LatLng & { id: string; label: string; no?: number }
@@ -13,6 +14,7 @@ type Props = {
   follow?: boolean; startLabel?: string; endLabel?: string; layerLabels?: [string, string]; onPick: (id: string) => void
   /** GPS 정확도(m). 내 위치 둘레의 파란 원 크기 */ accuracy?: number
   /** 값이 바뀔 때마다 내 위치로 지도를 옮긴다(위치가 아직 없으면 잡히는 대로) */ recenter?: number
+  /** 휴대폰이 바라보는 방향(0 = 북쪽). 있으면 내 위치에 방향 부채꼴을 그린다 */ heading?: number | null
 }
 
 // 위성사진 원본은 18배율까지. 그 위로는 받아 둔 사진을 늘려서 빈 타일(깨짐)이 안 보이게 한다
@@ -33,13 +35,16 @@ function asButton(node: Element | undefined, label: string, onPick: () => void) 
   })
 }
 
-export default function MapView({ center, pins, selected, route, me, follow, startLabel = 'Start', endLabel = 'End', layerLabels = ['Satellite', 'Map'], onPick, accuracy, recenter = 0 }: Props) {
+export default function MapView({ center, pins, selected, route, me, follow, startLabel = 'Start', endLabel = 'End', layerLabels = ['Satellite', 'Map'], onPick, accuracy, recenter = 0, heading }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<Leaflet.Map | null>(null)
   const layer = useRef<Leaflet.LayerGroup | null>(null)
   const L = useRef<typeof Leaflet | null>(null)
   const pick = useRef(onPick)
   useEffect(() => { pick.current = onPick })
+  const cone = useRef<HTMLElement | null>(null)
+  const aim = useRef(heading)
+  useEffect(() => { aim.current = heading; aimCone(cone.current, heading) }, [heading])
 
   const draw = useRef(() => {})
   // 지도가 경로보다 늦게 준비될 수 있어서, 준비된 직후에도 한 번 맞춘다
@@ -73,7 +78,9 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
     }
     if (me) {
       mod.circle(pt(me), { radius: accuracyRadius(accuracy), color: '#3b82f6', weight: 0, fillOpacity: 0.18, interactive: false }).addTo(g)
-      mod.circleMarker(pt(me), { radius: 8, color: '#fff', weight: 3, fillColor: '#3b82f6', fillOpacity: 1, interactive: false }).addTo(g)
+      const c = mod.marker(pt(me), { icon: mod.divIcon({ html: ME_HTML, className: '', iconSize: [64, 64], iconAnchor: [32, 32] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(g)
+      cone.current = c.getElement()?.querySelector<HTMLElement>('[data-cone]') ?? null
+      aimCone(cone.current, aim.current)
     }
   } })
 
