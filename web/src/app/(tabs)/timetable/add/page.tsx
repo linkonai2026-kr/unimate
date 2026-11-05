@@ -79,7 +79,7 @@ export default async function AddCoursePage({ searchParams }: PageProps<'/timeta
                 <div className="min-w-0 flex-1">
                   <p className="text-[16px] font-bold">{c.name}</p>
                   <p className="mt-0.5 text-[13px] text-muted">{c.prof || t(lang, 'profTbd')} · {t(lang, 'creditsN', { n: String(c.credit) })} · {t(lang, c.type === 'major' ? 'major' : 'general')}</p>
-                  <p className="text-[13px] text-muted">{c.slots.map(s => `${dayName(s.day, lang)} ${fmtMin(s.start)}–${fmtMin(s.end)}`).join(', ')}</p>
+                  <p className="text-[13px] text-muted">{[...new Set(c.slots.map(s => `${dayName(s.day, lang)} ${fmtMin(s.start)}–${fmtMin(s.end)}`))].join(', ')}</p>
                   <p className="mt-1 flex items-center gap-2 text-[12px]">
                     {rs.count > 0 && <span className="inline-flex items-center gap-0.5 font-semibold text-[#b07f00]"><Star size={12} weight="fill" aria-hidden />{rs.avg} ({rs.count})</span>}
                     <Link href={`/lectures/${encodeURIComponent(c.name)}`} className="inline-flex items-center gap-0.5 text-muted"><BookOpen size={12} aria-hidden />{t(lang, 'reviews')}</Link>

@@ -44,6 +44,12 @@ describe('catalogFromCourses', () => {
     expect(list.map(c => [c.name, c.slots.length, c.credit])).toEqual([['제어공학2', 2, 3], ['승마', 1, 2]])
     expect(new Set(list.map(c => c.code)).size).toBe(2)
   })
+  it('여러 사람이 올린 같은 분반의 같은 칸은 한 번만 담는다', () => {
+    const slot = { name: '회로이론', place: '5공학관 강의실[201호]', day: 0, start: 540, end: 720 }
+    const [c] = catalogFromCourses([slot, { ...slot }])
+    expect(c.slots).toEqual([{ day: 0, start: 540, end: 720 }])
+    expect(c.credit).toBe(3)
+  })
 })
 
 describe('gpa', () => {

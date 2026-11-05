@@ -1,7 +1,7 @@
 'use client'
 // 시간표에 직접 일정 넣기(30분 단위, 끝은 시작보다 뒤만 고를 수 있고, 겹치거나 틀리면 안내)
 import { CalendarPlus } from '@phosphor-icons/react'
-import { useActionState, useState } from 'react'
+import { startTransition, useActionState, useState } from 'react'
 import { addCustom } from '@/app/timetable-actions'
 import { btn, field } from '@/components/ui'
 import { dayName, t, type Lang } from '@/lib/i18n'
@@ -31,7 +31,8 @@ export default function CustomForm({ tableId, lang, open: initial }: { tableId: 
     </button>
   )
   return (
-    <form action={action} className="space-y-3 px-5 py-4">
+    // action={...} 대신 onSubmit: 폼 액션은 끝나면 폼을 초기화해서, 겹침 안내 뒤 고른 요일·시간과 화면 값이 어긋난다
+    <form onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); startTransition(() => action(f)) }} className="space-y-3 px-5 py-4">
       <input name="name" required maxLength={20} value={v.name} onChange={set('name')} aria-label={t(lang, 'customPlaceholder')} placeholder={t(lang, 'customPlaceholder')} className={field} />
       <input name="place" maxLength={40} value={v.place} onChange={set('place')} aria-label={t(lang, 'place')} placeholder={t(lang, 'place')} className={field} />
       <div className="grid grid-cols-3 gap-2">

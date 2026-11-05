@@ -25,13 +25,14 @@ export function filterCatalog(list: CatalogCourse[], f: CatalogFilter, mine: (Sl
 
 const hash = (s: string) => [...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7).toString(36)
 
-/** 캡처로 올린 시간표 강의를 과목(이름·강의실) 단위로 묶어 목록에 보탠다. 학점은 주당 시간으로 짐작(1~3) */
+/** 캡처로 올린 시간표 강의를 과목(이름·강의실) 단위로 묶어 목록에 보탠다(같은 칸은 한 번만). 학점은 주당 시간으로 짐작(1~3) */
 export function catalogFromCourses(courses: Pick<NewCourse, 'name' | 'place' | 'day' | 'start' | 'end'>[]): CatalogCourse[] {
   const by = new Map<string, CatalogCourse>()
   for (const c of courses) {
     const key = `${c.name}|${c.place}`
     const item = by.get(key) ?? { code: `U${hash(key)}`, name: c.name, prof: '', credit: 0, type: 'major' as const, place: c.place, slots: [] }
-    item.slots.push({ day: c.day, start: c.start, end: c.end })
+    // 여러 사람이 같은 분반을 올리면 같은 칸이 겹쳐 들어오니 한 번만 담는다(학점 짐작도 부풀지 않게)
+    if (!item.slots.some(s => s.day === c.day && s.start === c.start && s.end === c.end)) item.slots.push({ day: c.day, start: c.start, end: c.end })
     by.set(key, item)
   }
   return [...by.values()].map(c => ({ ...c, credit: Math.min(3, Math.max(1, Math.round(c.slots.reduce((n, s) => n + s.end - s.start, 0) / 60))) }))

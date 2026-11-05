@@ -109,10 +109,11 @@ export default function ImportTimetable({ lang, tableId }: { lang: Lang; tableId
                   <button type="button" onClick={() => remove(r.id)} aria-label={t(lang, 'delete')} className="press flex h-11 w-11 items-center justify-center rounded-xl text-danger"><X size={18} weight="bold" /></button>
                 </div>
                 <input value={r.place} maxLength={PLACE_MAX} onChange={e => edit(r.id, { place: e.target.value })} aria-label={t(lang, 'place')} className={`${field} w-full`} />
-                <div className="grid grid-cols-3 gap-1.5">
+                {/* 요일은 한두 글자라 좁게, 시간 칸은 "오전 10:00"이 잘리지 않게 넓게 */}
+                <div className="grid grid-cols-[4.5rem_1fr_1fr] gap-1.5">
                   <select value={r.day} onChange={e => edit(r.id, { day: Number(e.target.value) })} aria-label={t(lang, 'day')} className={field}>{Array.from({ length: DAYS }, (_, d) => <option key={d} value={d}>{dayName(d, lang)}</option>)}</select>
-                  <input type="time" step={1800} value={r.start} onChange={e => edit(r.id, { start: e.target.value })} aria-label={t(lang, 'start')} className={field} />
-                  <input type="time" step={1800} value={r.end} onChange={e => edit(r.id, { end: e.target.value })} aria-label={t(lang, 'end')} className={field} />
+                  <input type="time" step={1800} value={r.start} onChange={e => edit(r.id, { start: e.target.value })} aria-label={t(lang, 'start')} className={`${field} px-2`} />
+                  <input type="time" step={1800} value={r.end} onChange={e => edit(r.id, { end: e.target.value })} aria-label={t(lang, 'end')} className={`${field} px-2`} />
                 </div>
               </li>
             ))}

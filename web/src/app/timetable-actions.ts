@@ -43,7 +43,9 @@ export async function addFromCatalog(tableId: string, code: string, returnTo: st
   const [catalog, mine] = await Promise.all([store.listCatalog(), store.listTableCourses(t.id)])
   const c = catalog.find(x => x.code === code)
   if (!c) return
-  const slots = c.slots.filter(s => isDay(s.day) && s.start < s.end)
+  // 예전에 같은 칸이 두 번 저장된 강좌도 한 칸씩만 담는다
+  const slots = c.slots.filter((s, i) => isDay(s.day) && s.start < s.end
+    && c.slots.findIndex(o => o.day === s.day && o.start === s.start && o.end === s.end) === i)
   if (!slots.length || mine.some(m => m.code === code) || clash(mine, slots) || mine.length + slots.length > MAX_SLOTS) return
   await store.replaceTableCourses(t.id, [
     ...mine.map(strip),
