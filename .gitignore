@@ -14,3 +14,13 @@ npm-debug.log*
 ._*
 .DS_Store
 .vercel
+
+# 발표 자료로 만든 영상·이미지(용량이 커서 GitHub에 올리지 않는다. 만드는 스크립트와 통계 CSV는 올린다)
+deliverables/presentation/video/
+deliverables/presentation/slides/
+deliverables/presentation/shots/
+deliverables/presentation/img/
+deliverables/presentation/*.mp4
+deliverables/presentation/*.wav
+~$*
+deliverables/presentation/_*
