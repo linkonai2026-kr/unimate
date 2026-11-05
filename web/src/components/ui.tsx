@@ -1,7 +1,9 @@
-// 토스식 공통 화면 부품: 흰 덩어리(섹션), 누르기 쉬운 행, 아이콘 상자, 큰 버튼 모양, 국기, 빈 화면, 바닥 시트
+// 토스식 공통 화면 부품: 흰 덩어리(섹션), 누르기 쉬운 행, 아이콘 상자, 큰 버튼 모양, 국기, 빈 화면, 바닥 시트, 경고·이용 제한 안내
 import Link from 'next/link'
-import { CaretRight, Globe } from '@phosphor-icons/react/dist/ssr'
+import { CaretRight, Globe, ProhibitInset, WarningCircle } from '@phosphor-icons/react/dist/ssr'
 import type { ReactNode } from 'react'
+import { t, type Lang } from '@/lib/i18n'
+import { kstTime, REPEAT_SUSPENSION_DAYS, WARNING_LIMIT, type SanctionStatus } from '@/lib/moderation'
 
 /** 큰 버튼 모양(폼 버튼·링크 공통). 한 화면에 primary는 하나만 */
 export const btn = {
@@ -108,4 +110,25 @@ export function Sheet({ close, closeLabel = 'Close', children }: { close: string
 /** 화면 맨 아래에 붙는 주요 버튼 자리(하단 탭 위) */
 export function BottomCTA({ children }: { children: ReactNode }) {
   return <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-gradient-to-t from-bg via-bg to-bg/0 px-4 pb-3 pt-6">{children}</div>
+}
+
+/** 내 경고·이용 제한 상태 안내(홈·내 정보·글쓰기, 제한 중이면 댓글·쪽지 입력칸 자리). 상태가 없으면 아무것도 그리지 않는다 */
+export function SanctionBanner({ lang, status, className = '' }: { lang: Lang; status: SanctionStatus | null; className?: string }) {
+  if (!status) return null
+  const suspended = status.kind === 'suspended'
+  const title = suspended ? t(lang, 'suspendedTitle') : t(lang, status.kind === 'warning' ? 'warnTitle' : 'repeatTitle', { n: status.n })
+  const desc = suspended
+    ? t(lang, 'suspendedDesc', { until: kstTime(status.until, lang), reason: t(lang, status.rule ? `reason.${status.rule}` : 'reason.other') })
+    : status.kind === 'warning' ? t(lang, status.n >= WARNING_LIMIT ? 'warn2Desc' : 'warn1Desc') : t(lang, 'repeatDesc', { days: REPEAT_SUSPENSION_DAYS })
+  const Icon = suspended ? ProhibitInset : WarningCircle
+  return (
+    <div role="status" data-testid="sanction-banner" className={`rise mx-3 flex gap-3 rounded-[20px] p-4 ${suspended ? 'bg-danger/10' : 'bg-star/15'} ${className}`}>
+      <Icon size={24} weight="fill" className={`mt-0.5 shrink-0 ${suspended ? 'text-danger' : 'text-[#b07f00]'}`} aria-hidden />
+      <div className="min-w-0">
+        <p className={`text-[15px] font-bold ${suspended ? 'text-danger' : 'text-[#8a6400]'}`}>{title}</p>
+        <p className="mt-0.5 text-[14px] leading-relaxed text-ink/80">{desc}</p>
+        <Link href="/rules" className="press mt-1.5 inline-flex items-center gap-0.5 text-[13px] font-semibold text-muted">{t(lang, 'seeRules')}<CaretRight size={12} weight="bold" aria-hidden /></Link>
+      </div>
+    </div>
+  )
 }

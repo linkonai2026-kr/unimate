@@ -1,14 +1,15 @@
 'use server'
-// 게시판 서버 액션: 글·댓글 작성, 공감, 스크랩, 삭제, 게시판 고정·만들기
+// 게시판 서버 액션: 글·댓글 작성, 공감, 스크랩, 삭제, 신고, 게시판 고정·만들기
 import { refresh } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { requireUser } from '@/lib/auth/session'
-import { cleanInput, createCommentWithTranslation, createPostWithTranslation, translateLater } from '@/lib/board/flow'
+import { cleanInput, createCommentWithTranslation, createPostWithTranslation, moderateLater, translateLater } from '@/lib/board/flow'
 import { loadBoards, pinsOf, togglePin } from '@/lib/board/list'
 import { flowDeps } from '@/lib/board/deps'
 import { publish } from '@/lib/live/bus'
 import { MAX_IMAGE_BYTES, MAX_IMAGES, sniffImage } from '@/lib/images'
+import { isSuspended, REPORT_DETAIL_MAX, REPORT_REASONS } from '@/lib/moderation'
 import { createLimiter } from '@/lib/rate-limit'
 import { getStore } from '@/lib/store'
 
@@ -19,15 +20,31 @@ const LIMITS = { title: 100, body: 5000, comment: 2000, boardName: 20, boardDesc
 const Id = z.string().min(1).max(100)
 const Kind = z.enum(['post', 'comment'])
 const Want = z.boolean()
+const Reason = z.enum(REPORT_REASONS)
 
 // 사람마다 도배 제한(프로세스 메모리). 정상 사용으로는 닿지 않을 만큼 넉넉하게
 const postLimit = createLimiter({ limit: 10, windowMs: 10 * 60_000 })
 const commentLimit = createLimiter({ limit: 30, windowMs: 5 * 60_000 })
 const reactLimit = createLimiter({ limit: 120, windowMs: 60_000 })
 const boardLimit = createLimiter({ limit: 3, windowMs: 60 * 60_000 })
+const reportLimit = createLimiter({ limit: 10, windowMs: 10 * 60_000 })
+
+/** 신고 결과(글 화면이 ?reported= 값으로 안내 문구를 고른다) */
+export type ReportResult = 'ok' | 'dup' | 'own' | 'limit' | 'fail'
+
+/**
+ * 이용 제한 중이면 저장하지 않고 화면을 다시 그린다(글쓰기·댓글·쪽지 화면이 입력칸 대신 제한 안내를 보여 준다).
+ * 서버 액션은 화면을 거치지 않고도 부를 수 있으니 화면과 별개로 여기서 막는다
+ */
+function blockedBySanction(me: { suspendedUntil?: number | null }) {
+  if (!isSuspended(me)) return false
+  refresh()
+  return true
+}
 
 export async function submitPost(boardId: string, f: FormData) {
   const me = await requireUser()
+  if (blockedBySanction(me)) return
   const id = Id.safeParse(boardId)
   if (!id.success) return
   const board = (await loadBoards(getStore(), me.lang)).find(b => b.id === id.data)
@@ -51,6 +68,7 @@ export async function submitPost(boardId: string, f: FormData) {
 
 export async function submitComment(postId: string, f: FormData) {
   const me = await requireUser()
+  if (blockedBySanction(me)) return
   const id = Id.safeParse(postId)
   if (!id.success) return
   const store = getStore()
@@ -115,6 +133,36 @@ export async function removePost(postId: string) {
   await store.deletePost(post.id)
   for (const topic of [`board:${post.board}`, 'board:all', `post:${post.id}`]) await publish({ topic, kind: 'del', id: post.id })
   redirect(`/board/${post.board}`)
+}
+
+/**
+ * 글·댓글 신고: 내 글·댓글은 안 되고, 같은 글·댓글은 한 번만(사람당 횟수 제한). 받은 뒤 응답 뒤에 AI가 검수해
+ * 위반이면 가리고 작성자에게 경고·이용 제한. 결과는 글 화면 ?reported= 로 알린다
+ */
+export async function reportContent(kind: 'post' | 'comment', targetId: string, f: FormData) {
+  const me = await requireUser()
+  const args = z.tuple([Kind, Id]).safeParse([kind, targetId])
+  if (!args.success) return
+  const [k, id] = args.data
+  const store = getStore()
+  const row = k === 'post' ? await store.getPost(id) : await store.getComment(id)
+  if (!row) return
+  const postId = 'postId' in row ? row.postId : row.id
+  const back = (r: ReportResult): never => redirect(`/post/${encodeURIComponent(postId)}?reported=${r}`)
+  if (row.authorId === me.id) back('own')
+  const reason = Reason.safeParse(f.get('reason'))
+  if (!reason.success) redirect(`/post/${encodeURIComponent(postId)}`)
+  if (!reportLimit(me.id)) back('limit')
+  let saved
+  try {
+    saved = await store.createReport({ reporterId: me.id, kind: k, targetId: id, authorId: row.authorId, reason: reason.data, detail: cleanInput(f.get('detail'), REPORT_DETAIL_MAX, true) })
+  } catch (e) {
+    console.warn('[reportContent]', e instanceof Error ? e.message : e)
+    back('fail')
+  }
+  if (!saved) back('dup')
+  moderateLater(flowDeps(), k, id)
+  back('ok')
 }
 
 /** 홈 "즐겨찾는 게시판"에 고정하거나 뺀다(있는 게시판만). want가 오면 그 상태로 맞춘다(두 번 눌림에 안전) */

@@ -13,3 +13,4 @@ npm-debug.log*
 .vercel
 ._*
 .DS_Store
+.vercel

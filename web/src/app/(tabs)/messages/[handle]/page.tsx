@@ -1,4 +1,4 @@
-// 1:1 쪽지 대화(상대 언어로 번역, 실시간 갱신), 아래 고정 입력
+// 1:1 쪽지 대화(상대 언어로 번역, 실시간 갱신), 아래 고정 입력(이용 제한 중이면 입력 대신 제한 안내)
 import { PaperPlaneRight } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -6,10 +6,11 @@ import { sendMessage } from '@/app/friend-actions'
 import Avatar from '@/components/Avatar'
 import LiveRefresh from '@/components/LiveRefresh'
 import TrText from '@/components/TrText'
-import { Flag } from '@/components/ui'
+import { Flag, SanctionBanner } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { isPending } from '@/lib/board/flow'
 import { t } from '@/lib/i18n'
+import { isSuspended, sanctionStatus } from '@/lib/moderation'
 import { dmTopic } from '@/lib/live/bus'
 import { getStore } from '@/lib/store'
 import { pickText } from '@/lib/text'
@@ -48,10 +49,14 @@ export default async function ChatPage({ params }: PageProps<'/messages/[handle]
           )
         })}
       </ul>
-      <form action={sendMessage.bind(null, other.handle)} className="fixed inset-x-0 bottom-16 z-10 mx-auto flex max-w-[480px] items-center gap-2 bg-bg-soft/95 px-3 pb-3 pt-2 backdrop-blur">
-        <input name="body" required maxLength={1000} autoComplete="off" aria-label={t(lang, 'messagePlaceholder')} placeholder={t(lang, 'messagePlaceholder')} className="h-12 min-w-0 flex-1 rounded-2xl bg-bg px-4 text-[16px] outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
-        <button aria-label={t(lang, 'submit')} className="press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-navy text-white"><PaperPlaneRight size={20} weight="fill" aria-hidden /></button>
-      </form>
+      {isSuspended(me) ? (
+        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg-soft/95 pb-3 pt-2 backdrop-blur"><SanctionBanner lang={lang} status={sanctionStatus(me)} /></div>
+      ) : (
+        <form action={sendMessage.bind(null, other.handle)} className="fixed inset-x-0 bottom-16 z-10 mx-auto flex max-w-[480px] items-center gap-2 bg-bg-soft/95 px-3 pb-3 pt-2 backdrop-blur">
+          <input name="body" required maxLength={1000} autoComplete="off" aria-label={t(lang, 'messagePlaceholder')} placeholder={t(lang, 'messagePlaceholder')} className="h-12 min-w-0 flex-1 rounded-2xl bg-bg px-4 text-[16px] outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
+          <button aria-label={t(lang, 'submit')} className="press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-navy text-white"><PaperPlaneRight size={20} weight="fill" aria-hidden /></button>
+        </form>
+      )}
     </div>
   )
 }

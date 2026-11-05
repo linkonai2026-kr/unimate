@@ -190,6 +190,81 @@ describe('강좌 목록·학점 기록', () => {
     expect((await s.getGrades(u1))[0].name).toBe('1학년 1학기')
   })
 })
+describe('신고·위반 처리', () => {
+  const DAY = 24 * 60 * 60_000
+  const author = () => s.createProfile({ handle: `m${u1}${randomUUID().slice(0, 4)}`, nickname: 'M', nationality: 'KR', lang: 'ko', passHash: '' })
+  const report = (over = {}) => ({ reporterId: 'rep1', kind: 'post' as const, targetId: 'x', authorId: u1, reason: 'spam', detail: '', ...over })
+
+  it('같은 사람이 같은 글을 두 번 신고하면 두 번째는 null, 다른 사람은 따로 저장', async () => {
+    const p = await s.createPost(newPost())
+    const first = await s.createReport(report({ targetId: p.id }))
+    expect(first).toMatchObject({ reporterId: 'rep1', kind: 'post', targetId: p.id, status: 'pending' })
+    expect(await s.createReport(report({ targetId: p.id, reason: 'respect' }))).toBeNull()
+    expect(await s.createReport(report({ targetId: p.id, reporterId: 'rep2' }))).not.toBeNull()
+    // 같은 id라도 글과 댓글은 다른 대상
+    expect(await s.createReport(report({ targetId: p.id, kind: 'comment' }))).not.toBeNull()
+    expect((await s.listReports('post', p.id)).map(r => r.reporterId)).toEqual(['rep1', 'rep2'])
+  })
+
+  it('검수 결과는 대기 중 신고에만 적힌다', async () => {
+    const p = await s.createPost(newPost())
+    await s.createReport(report({ targetId: p.id }))
+    await s.resolveReports('post', p.id, 'clean')
+    await s.createReport(report({ targetId: p.id, reporterId: 'rep2' }))
+    await s.resolveReports('post', p.id, 'violation')
+    expect((await s.listReports('post', p.id)).map(r => r.status)).toEqual(['clean', 'violation'])
+  })
+
+  it('위반이면 가려지고 경고 1, 같은 글은 두 번 세지 않는다', async () => {
+    const a = await author()
+    const p = await s.createPost(newPost({ authorId: a.id }))
+    const now = Date.now()
+    expect(await s.applyViolation('post', p.id, 'respect', now)).toEqual({ authorId: a.id, violations: 1, suspendedUntil: null })
+    expect((await s.getPost(p.id))?.hidden).toBe(true)
+    expect(await s.applyViolation('post', p.id, 'respect', now)).toBeNull()
+    expect((await s.getProfile(a.id))?.violations).toBe(1)
+    expect(await s.applyViolation('post', 'no-such-post', 'respect', now)).toBeNull()
+  })
+
+  it('동시에 같은 글을 처리해도 한 번만 센다', async () => {
+    const a = await author()
+    const p = await s.createPost(newPost({ authorId: a.id }))
+    const results = await Promise.all([1, 2, 3].map(() => s.applyViolation('post', p.id, 'spam', Date.now())))
+    expect(results.filter(Boolean)).toHaveLength(1)
+    expect((await s.getProfile(a.id))?.violations).toBe(1)
+  })
+
+  it('경고 2번 뒤 3번째 위반은 7일, 4번째는 30일 이용 제한(사유 기록)', async () => {
+    const a = await author()
+    const now = Date.now()
+    const posts = await Promise.all([1, 2, 3].map(() => s.createPost(newPost({ authorId: a.id }))))
+    const c = await s.createComment({ postId: posts[0].id, parentId: null, authorId: a.id, anonymous: true, body: '댓글', lang: 'ko' })
+    await s.applyViolation('post', posts[0].id, 'respect', now)
+    expect(await s.applyViolation('post', posts[1].id, 'respect', now)).toMatchObject({ violations: 2, suspendedUntil: null })
+    expect((await s.getProfile(a.id))?.suspendedUntil ?? null).toBeNull()
+    expect(await s.applyViolation('post', posts[2].id, 'spam', now)).toEqual({ authorId: a.id, violations: 3, suspendedUntil: now + 7 * DAY })
+    expect(await s.getProfile(a.id)).toMatchObject({ violations: 3, suspendedUntil: now + 7 * DAY, sanctionReason: 'spam' })
+    // 댓글도 같은 횟수에 더해진다
+    expect(await s.applyViolation('comment', c.id, 'conflict', now)).toMatchObject({ violations: 4, suspendedUntil: now + 30 * DAY })
+    expect((await s.getComment(c.id))?.hidden).toBe(true)
+    expect((await s.getProfile(a.id))?.sanctionReason).toBe('conflict')
+  })
+
+  it('가려진 글은 게시판·검색·HOT·BEST·내 글 목록에서 빠지고, 상세(getPost)로는 읽힌다', async () => {
+    const a = await author()
+    const bad = await s.createPost(newPost({ authorId: a.id, title: '검색어고양이' }))
+    const ok = await s.createPost(newPost({ authorId: a.id, title: '검색어고양이 둘' }))
+    for (let i = 0; i < 10; i++) { await s.toggleLike('post', bad.id, `x${i}`); await s.toggleLike('post', ok.id, `x${i}`) }
+    await s.applyViolation('post', bad.id, 'respect', Date.now())
+    const ids = (list: { id: string }[]) => list.map(p => p.id)
+    expect(ids(await s.listPosts({ board }))).toEqual([ok.id])
+    expect(ids(await s.listPosts({ query: '검색어고양이' }))).toEqual([ok.id])
+    expect(ids(await s.listPosts({ hot: true, board }))).toEqual([ok.id])
+    expect(ids(await s.listPosts({ best: true, board }))).toEqual([ok.id])
+    expect(ids(await s.listPosts({ authorId: a.id }))).toEqual([ok.id])
+    expect((await s.getPost(bad.id))?.hidden).toBe(true)
+  })
+})
 })
 
 describe.each(IMPLS)('%s store: 두 구현이 같아야 하는 세부 동작', (_name, make) => {

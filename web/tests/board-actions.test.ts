@@ -1,8 +1,36 @@
-// 글 저장 → 실시간 발행 → 나중 번역 흐름과 목록 표시 변환을 검사하는 테스트
-import { describe, it, expect, beforeEach } from 'vitest'
+// 글 저장 → 실시간 발행 → 나중 번역·AI 검수 흐름, 목록 표시 변환, 신고·이용 제한 서버 액션을 검사하는 테스트
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { reportContent, submitComment, submitPost } from '@/app/board-actions'
+import { sendMessage } from '@/app/friend-actions'
+import { fakeModerate, FAKE_VIOLATION_MARKER } from '@/lib/ai/fake'
+import { reviewContent, sanctionStatus, type Verdict } from '@/lib/moderation'
+import type { Store } from '@/lib/store/types'
 import { createPostWithTranslation, toPostView, type FlowDeps } from '@/lib/board/flow'
 import { createMemoryStore } from '@/lib/store/memory'
 import type { LiveEvent } from '@/lib/types'
+
+// 서버 액션이 쓰는 Next·세션·스토어·의존성을 대역으로 바꾼다(이 파일의 흐름 테스트는 이 모듈들을 쓰지 않는다)
+const h = vi.hoisted(() => ({
+  store: null as unknown as Store,
+  meId: '',
+  later: [] as (() => Promise<void>)[],
+  refreshed: 0,
+  moderate: null as null | ((i: { title?: string; body: string }) => Promise<Verdict | null>),
+}))
+vi.mock('next/cache', () => ({ refresh: () => { h.refreshed++ } }))
+vi.mock('next/navigation', () => ({ redirect: (url: string) => { throw Object.assign(new Error('NEXT_REDIRECT'), { url }) } }))
+vi.mock('@/lib/auth/session', () => ({ requireUser: async () => h.store.getProfile(h.meId) }))
+vi.mock('@/lib/store', () => ({ getStore: () => h.store }))
+vi.mock('@/lib/live/bus', () => ({ publish: async () => {}, dmTopic: (a: string, b: string) => `dm:${[a, b].sort().join(':')}` }))
+vi.mock('@/lib/board/deps', () => ({
+  flowDeps: () => ({
+    store: h.store,
+    translate: async () => ({ detected: 'ko', tr: {} }),
+    moderate: (i: { title?: string; body: string }) => h.moderate!(i),
+    publish: async () => {},
+    defer: (fn: () => Promise<void>) => { h.later.push(fn) },
+  }),
+}))
 
 let events: LiveEvent[]
 let later: (() => Promise<void>)[]
@@ -202,5 +230,134 @@ describe('commentContext', () => {
     const ctx = commentContext(null, Array.from({ length: 9 }, (_, i) => c(i)))
     expect(ctx).toHaveLength(6)
     expect(ctx.at(-1)).toBe('Comment: 댓글8')
+  })
+})
+
+describe('새 글·댓글 AI 검수(응답 뒤)', () => {
+  const withProfile = async (d: FlowDeps) => d.store.createProfile({ handle: 'writer', nickname: 'W', nationality: 'KR', lang: 'ko', passHash: '' })
+
+  it('대역 검수기: 욕설·도박 광고·테스트 표시어만 위반, 평범한 낱말은 통과', () => {
+    expect(fakeModerate({ body: `안녕 ${FAKE_VIOLATION_MARKER}` })).toMatchObject({ violation: true, rule: 'respect' })
+    expect(fakeModerate({ title: '카지노 홍보', body: '가입하세요' })).toMatchObject({ violation: true, rule: 'spam' })
+    expect(fakeModerate({ body: '이번 학기의 시발점은 중간고사' }).violation).toBe(false)
+    expect(fakeModerate({ body: '오늘 학식 맛있어요' })).toMatchObject({ violation: false, rule: 'none' })
+  })
+
+  it('위반 글은 응답 뒤에 가려지고 작성자는 경고 1/2, 등록 자체는 막지 않는다', async () => {
+    const d: FlowDeps = { ...deps(async () => ({ detected: 'ko', tr: {} })), moderate: async i => fakeModerate(i) }
+    const a = await withProfile(d)
+    const post = await createPostWithTranslation(d, { ...input, authorId: a.id, body: `${FAKE_VIOLATION_MARKER} 테스트` })
+    expect((await d.store.getPost(post.id))?.hidden).toBeUndefined()
+    await runLater()
+    expect((await d.store.getPost(post.id))?.hidden).toBe(true)
+    const me = await d.store.getProfile(a.id)
+    expect(sanctionStatus(me!)).toEqual({ kind: 'warning', n: 1 })
+    expect(events.some(e => e.kind === 'del' && e.id === post.id)).toBe(true)
+    expect(toPostView((await d.store.getPost(post.id))!, { viewer: 'ko', viewerId: a.id, author: me, comments: 0 })).toMatchObject({ hidden: true, title: '', body: '', originalBody: '' })
+  })
+
+  it('검수기가 실패(null)하거나 던져도 제재하지 않고 글은 그대로', async () => {
+    for (const moderate of [async () => null, async () => { throw new Error('ai down') }] as FlowDeps['moderate'][]) {
+      later = []
+      const d: FlowDeps = { ...deps(async () => ({ detected: 'ko', tr: {} })), moderate }
+      const a = await withProfile(d)
+      const post = await createPostWithTranslation(d, { ...input, authorId: a.id, body: `${FAKE_VIOLATION_MARKER}` })
+      await runLater()
+      expect((await d.store.getPost(post.id))?.hidden).toBeUndefined()
+      expect((await d.store.getProfile(a.id))?.violations).toBeUndefined()
+    }
+  })
+
+  it('검수 실패면 신고는 pending으로 남고, 통과면 clean으로 적힌다', async () => {
+    const store = createMemoryStore(false)
+    const post = await store.createPost({ ...input, authorId: 'w1' })
+    await store.createReport({ reporterId: 'r1', kind: 'post', targetId: post.id, authorId: 'w1', reason: 'spam', detail: '' })
+    const publish = async () => {}
+    expect(await reviewContent({ store, publish, moderate: async () => null }, 'post', post.id)).toBe('error')
+    expect((await store.listReports('post', post.id))[0].status).toBe('pending')
+    expect((await store.getPost(post.id))?.hidden).toBeUndefined()
+    const clean: Verdict = { violation: false, rule: 'none', severity: 'low', reason: 'ok' }
+    expect(await reviewContent({ store, publish, moderate: async () => clean }, 'post', post.id)).toBe('clean')
+    expect((await store.listReports('post', post.id))[0].status).toBe('clean')
+  })
+})
+
+describe('신고·이용 제한 서버 액션', () => {
+  let store: Store
+  let me: string, other: string
+  const form = (o: Record<string, string>) => { const f = new FormData(); for (const [k, v] of Object.entries(o)) f.set(k, v); return f }
+  const redirectOf = async (p: Promise<unknown>) => {
+    try { await p } catch (e) { return (e as { url?: string }).url ?? null }
+    return null
+  }
+  const runAll = async () => { const fns = h.later.splice(0); for (const f of fns) await f() }
+
+  beforeEach(async () => {
+    store = createMemoryStore(false)
+    h.store = store
+    h.later = []
+    h.refreshed = 0
+    h.moderate = async i => fakeModerate(i)
+    me = (await store.createProfile({ handle: 'reporter', nickname: 'R', nationality: 'KR', lang: 'ko', passHash: '' })).id
+    other = (await store.createProfile({ handle: 'writer2', nickname: 'W', nationality: 'VN', lang: 'vi', passHash: '' })).id
+    h.meId = me
+  })
+
+  it('남의 글 신고 → 접수, 같은 글 다시 신고 → 이미 신고함', async () => {
+    const post = await store.createPost({ ...input, authorId: other })
+    expect(await redirectOf(reportContent('post', post.id, form({ reason: 'spam' })))).toBe(`/post/${post.id}?reported=ok`)
+    expect(await redirectOf(reportContent('post', post.id, form({ reason: 'respect' })))).toBe(`/post/${post.id}?reported=dup`)
+    expect(await store.listReports('post', post.id)).toHaveLength(1)
+  })
+
+  it('내 글·댓글은 신고할 수 없다', async () => {
+    const post = await store.createPost({ ...input, authorId: me })
+    const c = await store.createComment({ postId: post.id, parentId: null, authorId: me, anonymous: true, body: '내 댓글', lang: 'ko' })
+    expect(await redirectOf(reportContent('post', post.id, form({ reason: 'spam' })))).toBe(`/post/${post.id}?reported=own`)
+    expect(await redirectOf(reportContent('comment', c.id, form({ reason: 'spam' })))).toBe(`/post/${post.id}?reported=own`)
+    expect(await store.listReports('post', post.id)).toEqual([])
+  })
+
+  it('신고된 댓글이 위반이면 응답 뒤 가려지고 작성자 경고, 신고는 violation', async () => {
+    const post = await store.createPost({ ...input, authorId: me })
+    const c = await store.createComment({ postId: post.id, parentId: null, authorId: other, anonymous: true, body: '씨발 진짜', lang: 'ko' })
+    // 새 댓글 자동 검수가 아니라 신고로 들어온 경우만 보려고 스토어에 바로 넣었다
+    expect(await redirectOf(reportContent('comment', c.id, form({ reason: 'respect', detail: '욕설이에요' })))).toBe(`/post/${post.id}?reported=ok`)
+    await runAll()
+    expect((await store.getComment(c.id))?.hidden).toBe(true)
+    expect((await store.getProfile(other))?.violations).toBe(1)
+    expect((await store.listReports('comment', c.id))[0]).toMatchObject({ status: 'violation', detail: '욕설이에요', authorId: other })
+  })
+
+  it('AI 실패면 신고는 남고 제재는 없다', async () => {
+    h.moderate = async () => null
+    const post = await store.createPost({ ...input, authorId: other, body: '씨발' })
+    await redirectOf(reportContent('post', post.id, form({ reason: 'respect' })))
+    await runAll()
+    expect((await store.getPost(post.id))?.hidden).toBeUndefined()
+    expect((await store.listReports('post', post.id))[0].status).toBe('pending')
+  })
+
+  it('이용 제한 중이면 글·댓글·쪽지가 저장되지 않고, 풀리면 다시 쓸 수 있다', async () => {
+    const target = await store.createPost({ ...input, authorId: other })
+    const mine = await Promise.all([1, 2, 3].map(() => store.createPost({ ...input, authorId: me })))
+    const now = Date.now()
+    for (const p of mine) await store.applyViolation('post', p.id, 'respect', now)
+    expect(sanctionStatus((await store.getProfile(me))!)).toMatchObject({ kind: 'suspended', rule: 'respect' })
+
+    expect(await redirectOf(submitPost('free', form({ title: '제목', body: '본문' })))).toBeNull()
+    expect(await redirectOf(submitComment(target.id, form({ body: '댓글' })))).toBeNull()
+    expect(await redirectOf(sendMessage('writer2', form({ body: '안녕' })))).toBeNull()
+    expect(h.refreshed).toBe(3)
+    expect(await store.listPosts({ board: 'free' })).toHaveLength(1)
+    expect(await store.listComments(target.id)).toEqual([])
+    expect(await store.listMessages(me, other)).toEqual([])
+
+    // 제한 기간이 지난 사람(8일 전에 세 번째 위반)은 다시 쓸 수 있다
+    const olds = await Promise.all([1, 2, 3].map(() => store.createPost({ ...input, authorId: other })))
+    for (const p of olds) await store.applyViolation('post', p.id, 'spam', now - 8 * 24 * 60 * 60_000)
+    h.meId = other
+    expect(sanctionStatus((await store.getProfile(other))!)).toEqual({ kind: 'repeat', n: 3 })
+    expect(await redirectOf(submitComment(target.id, form({ body: '댓글' })))).toBe(`/post/${target.id}`)
   })
 })

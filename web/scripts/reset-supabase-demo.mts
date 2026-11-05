@@ -53,4 +53,17 @@ const reqs = (await all<{ from: string; to: string }>('friend_requests', '"from"
 console.log(`friend_requests: 지울 ${reqs.length}개`)
 if (yes) for (const r of reqs) { const { error } = await db.from('friend_requests').delete().eq('from', r.from).eq('to', r.to); if (error) throw new Error(error.message) }
 
+// 신고·제재(스키마 끝 블록을 실행한 DB만): 신고는 모두 지우고, 남은 시드 글·댓글·가입자의 가림·경고·이용 제한을 푼다
+const reports = await db.from('reports').select('id')
+if (reports.error) console.log(`reports: 건너뜀(${reports.error.message})`)
+else {
+  await drop('reports', 'id', (reports.data as { id: string }[]).map(r => r.id))
+  if (yes) {
+    for (const [table, patch] of [['posts', { hidden: false }], ['comments', { hidden: false }], ['profiles', { violations: 0, suspendedUntil: null, sanctionReason: null }]] as const) {
+      const { error } = await db.from(table).update(patch).in('id', [...keep[table]])
+      if (error) throw new Error(`${table}: ${error.message}`)
+    }
+  }
+}
+
 console.log(yes ? '정리 완료 → 시드를 다시 넣으세요(npm run seed:supabase)' : '미리보기만 했습니다. 지우려면 --yes')

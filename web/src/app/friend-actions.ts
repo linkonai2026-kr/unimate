@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/auth/session'
 import { flowDeps } from '@/lib/board/deps'
 import { cleanInput, messageContext, translateLater } from '@/lib/board/flow'
 import { dmTopic, publish } from '@/lib/live/bus'
+import { isSuspended } from '@/lib/moderation'
 import { createLimiter } from '@/lib/rate-limit'
 import { getStore } from '@/lib/store'
 import { cleanHandle } from '@/lib/timetable/match'
@@ -46,13 +47,15 @@ export async function respondFriendRequest(fromHandle: string, accept: boolean) 
   refresh()
 }
 
-/** 쪽지: 나 자신·없는 사람에게는 보내지 않고, 빈 글은 받지 않는다(제어 문자 제거, 1000자까지). 사용자당 횟수 제한 */
+/** 쪽지: 나 자신·없는 사람에게는 보내지 않고, 빈 글은 받지 않는다(제어 문자 제거, 1000자까지). 사용자당 횟수 제한, 이용 제한 중이면 막는다 */
 export async function sendMessage(toHandle: string, f: FormData) {
   const me = await requireUser()
   const body = cleanInput(f.get('body'), MESSAGE_MAX, true)
   const d = flowDeps()
   const other = await otherByHandle(me.id, toHandle)
   if (!other) redirect('/messages')
+  // 이용 제한 중이면 보내지 않고 화면을 다시 그린다(대화 화면이 입력칸 대신 제한 안내를 보여 준다)
+  if (isSuspended(me)) return refresh()
   if (!body || !messageAllowed(me.id)) return
   const m = await d.store.createMessage({ fromId: me.id, toId: other.id, body, lang: me.lang })
   const topic = dmTopic(me.id, other.id)

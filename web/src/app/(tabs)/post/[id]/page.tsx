@@ -1,29 +1,53 @@
-// 글 상세: 작성자, 번역된 본문·사진, 공감·스크랩, 익명 번호 댓글·대댓글, 아래 고정 댓글 입력
-import { ArrowBendDownRight, BookmarkSimple, ChatCircle, Heart as HeartIcon, PaperPlaneRight, PaperPlaneTilt, Trash } from '@phosphor-icons/react/dist/ssr'
+// 글 상세: 작성자, 번역된 본문·사진, 공감·스크랩, 익명 번호 댓글·대댓글, 아래 고정 댓글 입력, 글·댓글 신고 시트. 가려진 글·댓글은 안내 문구만
+import { ArrowBendDownRight, BookmarkSimple, ChatCircle, CheckCircle, EyeSlash, Heart as HeartIcon, Info, PaperPlaneRight, PaperPlaneTilt, Siren, Trash } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { like, removePost, scrap, submitComment } from '@/app/board-actions'
+import { like, removePost, reportContent, scrap, submitComment, type ReportResult } from '@/app/board-actions'
 import Avatar from '@/components/Avatar'
 import LiveRefresh from '@/components/LiveRefresh'
 import TrText from '@/components/TrText'
-import { Flag, btn } from '@/components/ui'
+import { Flag, SanctionBanner, Sheet, btn } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { loadBoards } from '@/lib/board/list'
 import { anonNumbers, toCommentView, toPostView, type CommentView } from '@/lib/board/flow'
-import { t, type Lang } from '@/lib/i18n'
+import { t, type Lang, type UiKey } from '@/lib/i18n'
+import { isSuspended, REPORT_DETAIL_MAX, REPORT_REASONS, sanctionStatus } from '@/lib/moderation'
 import { getStore } from '@/lib/store'
 import { timeAgo } from '@/lib/time'
 import type { Profile } from '@/lib/types'
 
+/** 신고 결과 안내 문구(?reported=) */
+const REPORTED: Record<ReportResult, UiKey> = { ok: 'reportOk', dup: 'reportDup', own: 'reportOwn', limit: 'reportLimit', fail: 'reportFail' }
+const one = (v: string | string[] | undefined) => (typeof v === 'string' && v ? v : null)
+
 export default async function PostPage({ params, searchParams }: PageProps<'/post/[id]'>) {
   const { id } = await params
-  const reply = (await searchParams).reply
-  const replyTo = typeof reply === 'string' && reply ? reply : null
+  const sp = await searchParams
+  const replyTo = one(sp.reply)
+  // ?report=post 는 글 신고, ?report=<댓글 id> 는 그 댓글 신고 시트
+  const reportParam = one(sp.report)
+  const reportedRaw = one(sp.reported)
+  const reported = reportedRaw && Object.hasOwn(REPORTED, reportedRaw) ? (reportedRaw as ReportResult) : null
   const me = await requireUser()
   const lang = me.lang
   const store = getStore()
   const post = await store.getPost(id)
   if (!post) notFound()
+  const self = `/post/${encodeURIComponent(post.id)}`
+
+  // 가려진 글: 쓴 사람에게도 제목·본문·사진·댓글을 보여 주지 않는다
+  if (post.hidden) {
+    return (
+      <div className="space-y-3 pb-6 pt-1">
+        <ReportedNotice lang={lang} reported={reported} />
+        <div className="rise card mx-3 flex flex-col items-center gap-2 px-6 py-14 text-center">
+          <EyeSlash size={32} className="text-muted" aria-hidden />
+          <p className="text-[16px] font-bold">{t(lang, 'hiddenPost')}</p>
+          <Link href="/rules" className="press text-[14px] font-medium text-muted underline">{t(lang, 'seeRules')}</Link>
+        </div>
+      </div>
+    )
+  }
 
   // 같은 사람의 프로필은 한 번만 읽는다
   const profiles = new Map<string, Promise<Profile | null>>()
@@ -44,12 +68,18 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
   const roots = cs.filter(c => !c.parentId)
   const replies = new Map<string, CommentView[]>()
   for (const c of cs) if (c.parentId) replies.set(c.parentId, [...(replies.get(c.parentId) ?? []), c])
-  const replyTarget = replyTo ? roots.find(c => c.id === replyTo) : undefined
+  const replyTarget = replyTo ? roots.find(c => c.id === replyTo && !c.hidden) : undefined
   const mine = post.authorId === me.id
+  // 신고 시트 대상: 남의 글이거나 남의 (가려지지 않은) 댓글만
+  const reportTarget = reportParam === 'post'
+    ? (mine ? null : { kind: 'post' as const, id: post.id })
+    : reportParam && cs.some(c => c.id === reportParam && !c.mine && !c.hidden) ? { kind: 'comment' as const, id: reportParam } : null
+  const suspended = isSuspended(me)
 
   return (
     <div className="space-y-3 pb-40 pt-1">
       <LiveRefresh topics={[`post:${post.id}`]} />
+      <ReportedNotice lang={lang} reported={reported} />
       <article className="rise card mx-3 p-5">
         <Link href={`/board/${encodeURIComponent(post.board)}`} className="text-[13px] font-semibold text-teal">{board?.name ?? post.board}</Link>
         <div className="mt-3 flex items-center gap-3">
@@ -60,6 +90,7 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
           </div>
           {mine && <form action={removePost.bind(null, post.id)}><button className={btn.small}><Trash size={16} aria-hidden />{t(lang, 'delete')}</button></form>}
           {!mine && !post.anonymous && author && <Link href={`/messages/${encodeURIComponent(author.handle)}`} className={btn.small}><PaperPlaneTilt size={16} aria-hidden />{t(lang, 'messages')}</Link>}
+          {!mine && <Link href={`${self}?report=post`} scroll={false} className={btn.small}><Siren size={16} aria-hidden />{t(lang, 'report')}</Link>}
         </div>
         <h1 className="mt-5 text-[22px] font-bold leading-snug tracking-tight">{p.title}</h1>
         <div className="mt-3 text-[16px] leading-relaxed">
@@ -110,33 +141,78 @@ export default async function PostPage({ params, searchParams }: PageProps<'/pos
         </ul>
       </section>
 
-      <form action={submitComment.bind(null, post.id)} className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg/95 px-3 pb-3 pt-2 backdrop-blur">
-        {replyTarget && (
-          <p className="mb-1.5 flex items-center justify-between px-2 text-[13px] font-medium text-teal">
-            <span className="flex min-w-0 items-center gap-1"><ArrowBendDownRight size={14} aria-hidden /><span className="truncate">{t(lang, 'replyingTo')}: {replyTarget.body.slice(0, 30)}</span></span>
-            <Link href={`/post/${encodeURIComponent(post.id)}`} scroll={false} className="text-muted">{t(lang, 'cancel')}</Link>
-          </p>
-        )}
-        <input type="hidden" name="parentId" value={replyTarget?.id ?? ''} />
-        <div className="flex items-center gap-2 rounded-2xl bg-bg-soft py-1.5 pl-3 pr-1.5">
-          {/* 비밀게시판은 항상 익명(체크를 풀 수 없음, 서버도 강제) */}
-          <label className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-teal"><input type="checkbox" name="anonymous" defaultChecked disabled={anonOnly} className="h-4 w-4 accent-[var(--teal)]" />{t(lang, 'anonymous')}</label>
-          <input name="body" required maxLength={2000} autoComplete="off" aria-label={t(lang, 'comment')} placeholder={t(lang, 'commentPlaceholder')} className="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-[#a4abb8]" />
-          <button aria-label={t(lang, 'submit')} className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy text-white"><PaperPlaneRight size={18} weight="fill" aria-hidden /></button>
-        </div>
-      </form>
+      {suspended ? (
+        <div className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg/95 pb-3 pt-2 backdrop-blur"><SanctionBanner lang={lang} status={sanctionStatus(me)} /></div>
+      ) : (
+        <form action={submitComment.bind(null, post.id)} className="fixed inset-x-0 bottom-16 z-10 mx-auto max-w-[480px] bg-bg/95 px-3 pb-3 pt-2 backdrop-blur">
+          {replyTarget && (
+            <p className="mb-1.5 flex items-center justify-between px-2 text-[13px] font-medium text-teal">
+              <span className="flex min-w-0 items-center gap-1"><ArrowBendDownRight size={14} aria-hidden /><span className="truncate">{t(lang, 'replyingTo')}: {replyTarget.body.slice(0, 30)}</span></span>
+              <Link href={`/post/${encodeURIComponent(post.id)}`} scroll={false} className="text-muted">{t(lang, 'cancel')}</Link>
+            </p>
+          )}
+          <input type="hidden" name="parentId" value={replyTarget?.id ?? ''} />
+          <div className="flex items-center gap-2 rounded-2xl bg-bg-soft py-1.5 pl-3 pr-1.5">
+            {/* 비밀게시판은 항상 익명(체크를 풀 수 없음, 서버도 강제) */}
+            <label className="flex shrink-0 items-center gap-1 text-[13px] font-semibold text-teal"><input type="checkbox" name="anonymous" defaultChecked disabled={anonOnly} className="h-4 w-4 accent-[var(--teal)]" />{t(lang, 'anonymous')}</label>
+            <input name="body" required maxLength={2000} autoComplete="off" aria-label={t(lang, 'comment')} placeholder={t(lang, 'commentPlaceholder')} className="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-[#a4abb8]" />
+            <button aria-label={t(lang, 'submit')} className="press flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-navy text-white"><PaperPlaneRight size={18} weight="fill" aria-hidden /></button>
+          </div>
+        </form>
+      )}
+
+      {reportTarget && (
+        <Sheet close={self} closeLabel={t(lang, 'close')}>
+          <h2 className="text-[20px] font-bold tracking-tight">{t(lang, reportTarget.kind === 'post' ? 'reportPostTitle' : 'reportCommentTitle')}</h2>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-muted">{t(lang, 'reportDesc')}</p>
+          <form action={reportContent.bind(null, reportTarget.kind, reportTarget.id)} className="mt-4 space-y-4">
+            <fieldset className="space-y-2">
+              <legend className="mb-2 text-[14px] font-semibold text-muted">{t(lang, 'reportReason')}</legend>
+              {REPORT_REASONS.map(r => (
+                <label key={r} className="press flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl bg-bg-soft px-4 text-[15px] font-medium has-[:checked]:bg-navy/8 has-[:checked]:text-navy">
+                  <input type="radio" name="reason" value={r} required className="h-5 w-5 accent-[var(--navy)]" />{t(lang, `reason.${r}`)}
+                </label>
+              ))}
+            </fieldset>
+            <textarea name="detail" maxLength={REPORT_DETAIL_MAX} rows={3} aria-label={t(lang, 'reportDetail')} placeholder={t(lang, 'reportDetail')}
+              className="w-full resize-none rounded-2xl bg-bg-soft p-4 text-[15px] leading-relaxed outline-none placeholder:text-[#a4abb8] focus:ring-2 focus:ring-navy/20" />
+            <button className={btn.primary}>{t(lang, 'reportSubmit')}</button>
+          </form>
+        </Sheet>
+      )}
     </div>
   )
 }
 
+/** 신고 뒤 돌아왔을 때 결과 안내 */
+function ReportedNotice({ lang, reported }: { lang: Lang; reported: ReportResult | null }) {
+  if (!reported) return null
+  const ok = reported === 'ok'
+  const Icon = ok ? CheckCircle : Info
+  return (
+    <p role="status" className={`rise mx-3 flex items-center gap-2 rounded-2xl px-4 py-3 text-[14px] font-semibold ${ok ? 'bg-mint-soft text-mint-text' : 'bg-bg text-ink'}`}>
+      <Icon size={20} weight="fill" className="shrink-0" aria-hidden />{t(lang, REPORTED[reported])}
+    </p>
+  )
+}
+
 function CommentRow({ c, lang, postId, reply }: { c: CommentView; lang: Lang; postId: string; reply?: boolean }) {
+  if (c.hidden) {
+    return (
+      <p className="flex items-center gap-2 px-5 py-4 text-[14px] text-muted">
+        <EyeSlash size={16} className="shrink-0" aria-hidden />{t(lang, 'hiddenComment')}
+      </p>
+    )
+  }
+  const self = `/post/${encodeURIComponent(postId)}`
   return (
     <div className="px-5 py-3">
       <div className="flex items-center gap-2">
         <Avatar n={c.avatar} photo={c.photo} size={28} />
         <span className={`flex flex-1 items-center gap-1.5 text-[14px] font-bold ${c.isPostAuthor ? 'text-teal' : ''}`}><Flag code={c.nation} size={11} />{c.author}</span>
         <span className="flex items-center gap-1">
-          {!reply && <Link href={`/post/${encodeURIComponent(postId)}?reply=${encodeURIComponent(c.id)}`} scroll={false} className="press rounded-lg px-2 py-1 text-[12px] font-medium text-muted">{t(lang, 'reply')}</Link>}
+          {!reply && <Link href={`${self}?reply=${encodeURIComponent(c.id)}`} scroll={false} className="press rounded-lg px-2 py-1 text-[12px] font-medium text-muted">{t(lang, 'reply')}</Link>}
+          {!c.mine && <Link href={`${self}?report=${encodeURIComponent(c.id)}`} scroll={false} aria-label={`${t(lang, 'report')}: ${c.author}`} className="press rounded-lg px-2 py-1 text-[12px] font-medium text-muted">{t(lang, 'report')}</Link>}
           <form action={like.bind(null, 'comment', c.id, !c.liked)}><button aria-label={t(lang, 'like')} aria-pressed={c.liked} className={`press flex items-center gap-0.5 rounded-lg px-2 py-1 text-[12px] font-semibold ${c.liked ? 'text-danger' : 'text-muted'}`}><HeartIcon size={14} weight={c.liked ? 'fill' : 'regular'} aria-hidden />{c.likes || ''}</button></form>
         </span>
       </div>

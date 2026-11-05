@@ -9,7 +9,7 @@ import MiniMap from '@/components/MiniMap'
 import MyDeadlines from '@/components/MyDeadlines'
 import { Bubble, Heart } from '@/components/PostCard'
 import { MenuCard, NoticeCard } from '@/components/SchoolCards'
-import { Flag, IconBox, Row, Section, type Tone } from '@/components/ui'
+import { Flag, IconBox, Row, SanctionBanner, Section, type Tone } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { loadBoards, pinsOf } from '@/lib/board/list'
 import { postViews } from '@/lib/board/views'
@@ -20,6 +20,7 @@ import { kstDay } from '@/lib/school/memo'
 import { getStore } from '@/lib/store'
 import { pickText } from '@/lib/text'
 import { isNew, timeAgo } from '@/lib/time'
+import { sanctionStatus } from '@/lib/moderation'
 import { nextClass } from '@/lib/timetable/next'
 import { parsePlace } from '@/lib/timetable/rooms'
 import { fmtMin } from '@/lib/timetable/slots'
@@ -54,6 +55,7 @@ export default async function Home() {
       <LiveRefresh topics={['board:all']} />
       {/* 학식·공지는 오늘(한국) 기준: 열어 둔 채 자정이 지나면 새로 받는다 */}
       <DayRefresh day={kstDay().iso} />
+      <SanctionBanner lang={lang} status={sanctionStatus(me)} />
 
       {/* 지금/다음 수업: 한눈에 보고 바로 길찾기 */}
       <section className="rise mx-3 rounded-[24px] bg-navy p-5 text-white">

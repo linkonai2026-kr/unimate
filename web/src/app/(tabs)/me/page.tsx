@@ -3,9 +3,10 @@ import { BookmarkSimple, ChatCircleText, Globe, IdentificationCard, Key, NotePen
 import Link from 'next/link'
 import { logout } from '@/app/auth-actions'
 import Avatar from '@/components/Avatar'
-import { Flag, IconBox, Row, Section } from '@/components/ui'
+import { Flag, IconBox, Row, SanctionBanner, Section } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { LANGS, t } from '@/lib/i18n'
+import { sanctionStatus } from '@/lib/moderation'
 import { nationName } from '@/lib/nations'
 
 const ACTIVITY = [
@@ -19,6 +20,7 @@ export default async function MePage() {
   const lang = me.lang
   return (
     <div className="space-y-3 pb-6 pt-1">
+      <SanctionBanner lang={lang} status={sanctionStatus(me)} />
       <section className="rise card mx-3 p-5">
         <div className="flex items-center gap-4">
           <Avatar n={me.avatar ?? 0} photo={me.photo} size={64} />
