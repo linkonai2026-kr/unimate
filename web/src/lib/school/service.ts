@@ -2,6 +2,7 @@
 import 'server-only'
 import { summarizeNotice, translateList, type Apply, type Summary } from '../ai'
 import { has } from '../env'
+import { recordServer, timed } from '../metrics'
 import type { Lang } from '../i18n'
 import { getMenu, menuTargetDay, type MenuWeek } from './menu'
 import { addDays, createMemo, kstDay } from './memo'
@@ -33,7 +34,7 @@ const NO_DETAIL: Detail = { text: '', images: 0, files: [], body: '' }
 /** 상세 페이지에서 뽑은 정보(HTML 전체 대신 뽑은 글자만 캐시). 받지 못했으면 캐시하지 않는다 */
 function detailOf(n: Notice): Promise<Detail> {
   return memo(`detail:${n.board}:${n.id}`, async () => {
-    const html = await getNoticeHtml(n.board, n.id)
+    const html = await timed('notice_detail', getNoticeHtml(n.board, n.id), h => ({ ok: !!h, source: h ? 'live' : 'empty' }))
     return html ? { ...parseNoticeDetail(html), body: parseNoticeBody(html) } : NO_DETAIL
   }, d => d !== NO_DETAIL).catch(() => NO_DETAIL)
 }
@@ -51,6 +52,7 @@ function noticeList(board: NoticeBoard, limit: number) {
 }
 
 export async function noticeCards(board: NoticeBoard, lang: Lang, limit = 3): Promise<{ items: NoticeCard[]; source: 'live' | 'snapshot' }> {
+  const t0 = Date.now()
   try {
     const { items, source } = await noticeList(board, limit)
     // 목록을 못 받았으면(스냅샷) 상세도 받을 수 없으니 기다리지 않는다
@@ -66,9 +68,11 @@ export async function noticeCards(board: NoticeBoard, lang: Lang, limit = 3): Pr
       const deadline = s?.deadline ?? null
       return { ...n, titleTr: titles[i] || n.title, excerpt: d.text.slice(0, 160), images: d.images, files: d.files, bullets: s?.bullets ?? [], deadline, isToday: postedToday(n.date), dday: deadline ? dDay(deadline) : null, apply: s?.apply ?? null }
     }))
+    recordServer('notices', { ms: Date.now() - t0, ok: source === 'live', source })
     return { items: cards, source }
   } catch (e) {
     console.warn('[noticeCards]', board, e instanceof Error ? e.message : e)
+    recordServer('notices', { ms: Date.now() - t0, ok: false, source: 'error' })
     return { items: snapshotNotices(board, limit).map(bare), source: 'snapshot' }
   }
 }
@@ -92,6 +96,7 @@ const lastMenu = globalThis as { __uniLastMenu?: { week: MenuWeek; weekKey: stri
  * 사이트가 응답하지 않으면 같은 주에 마지막으로 받은 식단을 받은 시각과 함께 보여 주고, 그것도 없으면 error
  */
 export async function menuView(lang: Lang, now = Date.now()): Promise<MenuResultView> {
+  const t0 = Date.now()
   const r = await memo(`menu-fetch:${menuTargetDay(now).iso}`, () => getMenu(), () => false).catch(() => ({ week: null, source: 'error' as const }))
   let week: MenuWeek
   let at: number | null = null
@@ -100,12 +105,16 @@ export async function menuView(lang: Lang, now = Date.now()): Promise<MenuResult
     lastMenu.__uniLastMenu = { week, weekKey: weekKey(now), at: now }
   } else {
     const saved = lastMenu.__uniLastMenu
-    if (!saved || saved.weekKey !== weekKey(now)) return { week: null, source: 'error' }
+    if (!saved || saved.weekKey !== weekKey(now)) {
+      recordServer('menu', { ms: Date.now() - t0, ok: false, source: 'error' })
+      return { week: null, source: 'error' }
+    }
     week = saved.week
     at = saved.at
   }
   const names = [...new Set(week.corners.flatMap(c => [c.name, ...c.meals.flatMap(m => m.byDay.flat())]))]
   const out = await translated('menu', names, lang)
   const tr = Object.fromEntries(names.map((n, k) => [n, out[k] || n]))
+  recordServer('menu', { ms: Date.now() - t0, ok: at == null, source: at == null ? 'live' : 'cached' })
   return at == null ? { week: { ...week, tr }, source: 'live' } : { week: { ...week, tr }, source: 'cached', at }
 }

@@ -163,3 +163,26 @@ end
 $$;
 revoke all on function apply_violation(text, text, text, bigint, int, bigint, bigint) from public, anon, authenticated;
 grant execute on function apply_violation(text, text, text, bigint, int, bigint, bigint) to service_role;
+
+-- =====================================================================================================
+-- 익명 사용 통계(/api/events, /stats). 이 블록만 따로 SQL Editor에 붙여 실행해도 되고, 여러 번 실행해도 된다
+-- 방문객은 무작위 세션 id(sid)만, 로그인한 사용자는 서버가 세션으로 확인한 계정 id(uid)를 담는다. IP는 담지 않는다
+-- =====================================================================================================
+create table if not exists events (
+  id bigint generated always as identity primary key,
+  at bigint not null,
+  kind text not null,
+  sid text,
+  uid text,
+  visitor boolean,
+  lang text,
+  path text,
+  data jsonb not null default '{}'::jsonb
+);
+alter table events add column if not exists uid text;
+create index if not exists events_at on events (at);
+create index if not exists events_kind on events (kind);
+create index if not exists events_uid on events (uid) where uid is not null;
+-- RLS를 켜고 정책을 두지 않는다: anon·authenticated는 읽거나 쓸 수 없고 서버(service role)만 쓴다
+alter table events enable row level security;
+revoke all on table events from anon, authenticated;

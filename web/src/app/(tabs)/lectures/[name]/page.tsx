@@ -40,6 +40,7 @@ export default async function LecturePage({ params }: PageProps<'/lectures/[name
   const authorIds = [...new Set(reviews.map(r => r.authorId))]
   const profiles = new Map<string, Profile | null>(await Promise.all(authorIds.map(async id => [id, await store.getProfile(id)] as const)))
   const professor = reviews.find(r => r.professor)?.professor ?? ''
+  const reviewed = reviews.some(r => r.authorId === me.id)
   return (
     <div className="space-y-3 pb-6 pt-1">
       <LiveRefresh topics={[`reviews:${name}`]} />
@@ -85,7 +86,8 @@ export default async function LecturePage({ params }: PageProps<'/lectures/[name
         </Section>
       )}
 
-      {canWrite && <Section title={t(lang, 'writeReview')}>
+      {canWrite && reviewed && <p role="status" className="rise mx-3 rounded-2xl bg-bg px-5 py-4 text-[14px] font-medium text-muted">{t(lang, 'reviewedAlready')}</p>}
+      {canWrite && !reviewed && <Section title={t(lang, 'writeReview')}>
         <form action={submitReview.bind(null, name)} className="space-y-3 px-5 pb-5 pt-3">
           <fieldset className="grid grid-cols-5 gap-1.5">
             <legend className="sr-only">{t(lang, 'rating')}</legend>

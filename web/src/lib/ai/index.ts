@@ -1,6 +1,7 @@
 // AI 기능의 진입점: 데모 사전 번역 → Claude(시간 제한·중단·동시 실행 제한) → 대역 순으로 처리. 글 검수도 같은 줄을 쓴다
 import { has } from '../env'
 import type { Lang } from '../i18n'
+import { recordServer, timed } from '../metrics'
 import type { ModerationInput, Verdict } from '../moderation'
 import type { TrMap } from '../types'
 import { claudeList, claudeModerate, claudeSummary, claudeTimetable, claudeTranslate } from './claude'
@@ -29,10 +30,14 @@ async function abortAfter<T>(ms: number, run: (signal: AbortSignal) => Promise<T
 }
 
 /** 실패·시간 초과면 대역 값 */
-async function orFallback<T>(label: string, ms: number, run: (signal: AbortSignal) => Promise<T>, fallback: () => T): Promise<T> {
+async function orFallback<T>(label: 'summary' | 'list' | 'timetable', ms: number, run: (signal: AbortSignal) => Promise<T>, fallback: () => T): Promise<T> {
+  const t0 = Date.now()
   try {
-    return await abortAfter(ms, run)
+    const v = await abortAfter(ms, run)
+    recordServer(`ai_${label}`, { ms: Date.now() - t0, ok: true, source: 'claude' })
+    return v
   } catch (e) {
+    recordServer(`ai_${label}`, { ms: Date.now() - t0, ok: false, source: 'fallback' })
     console.warn(`[ai] ${label} fallback:`, e instanceof Error ? e.message : e)
     return fallback()
   }
@@ -66,7 +71,7 @@ export async function translate(fields: Record<string, string>, context: string[
   if (!has.ai) return fakeTranslate(fields)
   await acquire()
   try {
-    return await abortAfter(TRANSLATE_MS, signal => claudeTranslate(fields, context, signal))
+    return await timed('ai_translate', abortAfter(TRANSLATE_MS, signal => claudeTranslate(fields, context, signal)))
   } finally {
     release()
   }
@@ -96,7 +101,14 @@ export async function moderate(input: ModerationInput): Promise<Verdict | null> 
 
 export async function summarizeNotice(title: string, body: string, lang: Lang): Promise<Summary> {
   if (!has.ai) return fakeSummary(title, body)
-  return orFallback('summary', SUMMARY_MS, signal => claudeSummary(title, body, lang, signal), () => fakeSummary(title, body))
+  // 키가 있는데 실패하면 대역(본문 첫 문장·첫 날짜)을 내지 않고 예외를 올린다. 대역의 마감은 성적 송부일 같은 엉뚱한 날짜일 수 있고,
+  // 호출 쪽은 예외면 캐시하지 않고 요약 없이 본문 앞부분만 보여 준다(다음 요청에서 다시 시도)
+  try {
+    return await abortAfter(SUMMARY_MS, signal => claudeSummary(title, body, lang, signal))
+  } catch (e) {
+    console.warn('[ai] summary failed:', e instanceof Error ? e.message : e)
+    throw e
+  }
 }
 
 /** 실패하면 원문(한국어) 목록을 그대로 돌려준다 */

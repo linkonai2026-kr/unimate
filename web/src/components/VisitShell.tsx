@@ -3,6 +3,7 @@ import { ForkKnife, House, MapPin, Megaphone, Translate } from '@phosphor-icons/
 import Image from 'next/image'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import Tracker from '@/components/Tracker'
 import { LANGS, t, type Lang, type UiKey } from '@/lib/i18n'
 import { visitHref } from '@/lib/visit'
 
@@ -36,6 +37,7 @@ export default function VisitShell({ lang, active, query = {}, children }: { lan
         <Link href={`/login?lang=${lang}`} className="press flex h-10 items-center rounded-full bg-navy px-3.5 text-[14px] font-bold text-white">{t(lang, 'login')}</Link>
       </header>
       <main>{children}</main>
+      <Tracker visitor lang={lang} />
       <nav aria-label={t(lang, 'visitor')} className="fixed inset-x-0 bottom-0 z-20 bg-bg/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--line)] backdrop-blur">
         <ul className="mx-auto flex max-w-[480px]">
           {TABS.map(({ id, path, key, Icon }) => {

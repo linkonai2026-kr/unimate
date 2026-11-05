@@ -25,6 +25,7 @@ export default function AuthShell({ lang, path, next, children, footer }: { lang
       </nav>
       <main className="rise mt-8 flex-1">{children}</main>
       <div className="mt-6 text-center text-[15px]">{footer}</div>
+      <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">{t(lang, 'statsNotice')}</p>
     </div>
   )
 }

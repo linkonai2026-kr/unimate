@@ -1,8 +1,10 @@
 // 두 좌표 사이 도보 경로(TMAP, 없으면 직선)와 단계 안내를 사용자 언어로 돌려주는 API(도착지는 캠퍼스 근처만, 방문객은 IP·학생은 계정 단위 횟수 제한)
 import { translateList } from '@/lib/ai'
 import { currentUser } from '@/lib/auth/session'
+import { has } from '@/lib/env'
 import { isLang } from '@/lib/i18n'
-import { DEST_RADIUS_M, getWalkingRoute, nearCampus, parseLatLng } from '@/lib/map/route'
+import { DEST_RADIUS_M, getWalkingRoute, nearCampus, parseLatLng, TMAP_START_RADIUS_M } from '@/lib/map/route'
+import { recordServer } from '@/lib/metrics'
 import { createLimiter } from '@/lib/rate-limit'
 
 /** 로그인 없는 방문객 길찾기: IP당 10분에 30회. 학생은 계정당 10분에 120회(안내 중 경로 다시 찾기를 넉넉히). TMAP·번역 사용량 보호 */
@@ -37,6 +39,7 @@ export async function GET(req: Request) {
   const uid = await studentId()
   if (!(uid ? studentAllowed(uid) : visitorAllowed(clientIp(req)))) return json({ error: 'too many requests' }, 429, { 'Retry-After': '600' })
 
+  const t0 = Date.now()
   try {
     const route = await getWalkingRoute(from, to)
     const lang = sp.get('lang')
@@ -44,8 +47,11 @@ export async function GET(req: Request) {
       const texts = await translateList(route.steps.map(s => s.text), lang).catch(() => [] as string[])
       route.steps = route.steps.map((s, i) => ({ ...s, text: typeof texts[i] === 'string' && texts[i] ? texts[i] : s.text }))
     }
+    // TMAP을 쓸 수 있는 요청인데 직선이면 TMAP이 실패한 것
+    recordServer('route', { ms: Date.now() - t0, ok: route.source === 'tmap' || !has.tmap || !nearCampus(from, TMAP_START_RADIUS_M), source: route.source })
     return json(route)
   } catch (e) {
+    recordServer('route', { ms: Date.now() - t0, ok: false, source: 'error' })
     console.warn('[api/route]', e instanceof Error ? e.message : e)
     return json({ error: 'route failed' }, 502)
   }

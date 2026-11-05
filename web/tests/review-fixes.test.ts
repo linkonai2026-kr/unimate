@@ -69,11 +69,11 @@ describe('I7: 끝 시간만 12시간제로 온 수업', () => {
 })
 
 describe('AI 호출: 실패하면 대역, 시간 제한은 요청 자체를 끊는 신호로', () => {
-  it('요약이 실패하면 대역 3줄', async () => {
+  it('키가 있는데 요약이 실패하면 대역을 내지 않고 예외(호출 쪽이 캐시하지 않고 본문 앞부분만 보여 줌)', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
     vi.doMock('@/lib/ai/claude', () => ({ claudeSummary: vi.fn().mockRejectedValue(new Error('boom')) }))
     const { summarizeNotice } = await import('@/lib/ai')
-    expect((await summarizeNotice('제목', '첫 문장. 둘째 문장. 셋째 문장.', 'en')).bullets).toHaveLength(3)
+    await expect(summarizeNotice('제목', '첫 문장. 2027.1.25 성적 송부.', 'en')).rejects.toThrow('boom')
   })
   it('목록 번역은 중단 신호를 넘기고, 실패하면 원문 목록', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')

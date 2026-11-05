@@ -57,6 +57,7 @@ export default async function VisitHome({ searchParams }: PageProps<'/visit'>) {
       <p className="mt-5 px-6 text-center text-[13px] text-muted">
         {t(lang, 'visitStudentOnly')} · <Link href={`/login?lang=${lang}`} className="font-semibold text-teal">{t(lang, 'login')}</Link>
       </p>
+      <p className="mt-2 px-6 text-center text-[12px] leading-relaxed text-muted">{t(lang, 'statsNotice')}</p>
     </VisitShell>
   )
 }

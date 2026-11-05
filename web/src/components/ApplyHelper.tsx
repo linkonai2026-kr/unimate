@@ -32,12 +32,12 @@ export default function ApplyHelper({ n, lang, mode, saved }: { n: NoticeCard; l
           ? <span className={`${chip} text-teal`}><CheckCircle size={17} weight="fill" aria-hidden />{t(lang, 'prepared')}</span>
           : (
             <form action={prepareNotice.bind(null, n.board, n.id)}>
-              <button className="press inline-flex h-10 items-center gap-1.5 rounded-xl bg-teal px-3 text-[14px] font-bold text-white"><Sparkle size={17} weight="fill" aria-hidden />{t(lang, 'prepareApply')}</button>
+              <button data-track="prepare" className="press inline-flex h-10 items-center gap-1.5 rounded-xl bg-teal px-3 text-[14px] font-bold text-white"><Sparkle size={17} weight="fill" aria-hidden />{t(lang, 'prepareApply')}</button>
             </form>
           ))}
-        {ics && <a href={ics} className={chip}><CalendarPlus size={17} aria-hidden />{t(lang, 'addCalendar')}</a>}
-        {route && <Link href={route} className={chip}><NavigationArrow size={17} aria-hidden />{t(lang, 'routeToOffice')}</Link>}
-        {a?.url && <a href={a.url} target="_blank" rel="noopener noreferrer" className={chip}>{t(lang, 'openApplyPage')}<ArrowSquareOut size={15} aria-hidden /></a>}
+        {ics && <a href={ics} data-track="ics" className={chip}><CalendarPlus size={17} aria-hidden />{t(lang, 'addCalendar')}</a>}
+        {route && <Link href={route} data-track="route" className={chip}><NavigationArrow size={17} aria-hidden />{t(lang, 'routeToOffice')}</Link>}
+        {a?.url && <a href={a.url} target="_blank" rel="noopener noreferrer" data-track="apply_page" className={chip}>{t(lang, 'openApplyPage')}<ArrowSquareOut size={15} aria-hidden /></a>}
       </div>
     </section>
   )

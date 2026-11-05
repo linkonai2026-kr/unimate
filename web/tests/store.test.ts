@@ -53,6 +53,12 @@ describe('기본', () => {
     expect((await s.listCourses(u1)).map(c => c.name)).toEqual(['B'])
   })
 
+  it('가입 정보에 표에 없는 키(평문 password 등)가 섞이면 저장하지 않는다', async () => {
+    const bad = { handle: `pw${u1}`, nickname: 'P', nationality: 'KR', lang: 'ko' as const, passHash: '', password: 'plain' }
+    await expect(s.createProfile(bad)).rejects.toThrow()
+    expect(await s.getProfileByHandle(`pw${u1}`)).toBeNull()
+  })
+
   it('친구는 양방향', async () => {
     const a = await s.createProfile({ handle: `a${u1}`, nickname: 'A', nationality: 'KR', lang: 'ko', passHash: '' })
     const b = await s.createProfile({ handle: `b${u1}`, nickname: 'B', nationality: 'VN', lang: 'vi', passHash: '' })

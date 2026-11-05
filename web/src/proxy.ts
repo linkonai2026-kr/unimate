@@ -2,8 +2,8 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { readSession, safeNext, SESSION_COOKIE } from './lib/auth/token'
 
-/** 로그인 없이 여는 화면: 정확히 그 경로이거나 그 아래만(/loginx 같은 경로는 막는다) */
-const PUBLIC_PAGE = /^\/(?:login|signup|visit)(?:\/|$)/
+/** 로그인 없이 여는 화면: 정확히 그 경로이거나 그 아래만(/loginx 같은 경로는 막는다). /stats는 페이지가 STATS_KEY를 직접 확인한다 */
+const PUBLIC_PAGE = /^\/(?:login|signup|visit|stats)(?:\/|$)/
 /** public/ 폴더 파일과 Next가 만드는 아이콘·매니페스트 */
 const PUBLIC_FILE = /^\/(?:(?:brand|flags)\/[\w.-]+\.(?:png|svg)|favicon\.ico|icon\.png|apple-icon\.png|manifest\.webmanifest|robots\.txt)$/
 

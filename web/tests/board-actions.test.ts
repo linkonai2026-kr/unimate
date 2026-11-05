@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { reportContent, submitComment, submitPost } from '@/app/board-actions'
 import { sendMessage } from '@/app/friend-actions'
+import { submitReview } from '@/app/review-actions'
 import { fakeModerate, FAKE_VIOLATION_MARKER } from '@/lib/ai/fake'
 import { reviewContent, sanctionStatus, type Verdict } from '@/lib/moderation'
 import type { Store } from '@/lib/store/types'
@@ -359,5 +360,13 @@ describe('신고·이용 제한 서버 액션', () => {
     h.meId = other
     expect(sanctionStatus((await store.getProfile(other))!)).toEqual({ kind: 'repeat', n: 3 })
     expect(await redirectOf(submitComment(target.id, form({ body: '댓글' })))).toBe(`/post/${target.id}`)
+  })
+  it('강의평가는 과목마다 한 사람 한 번만 저장된다', async () => {
+    const review = () => form({ rating: '5', body: '좋은 수업이에요' })
+    expect(await redirectOf(submitReview('자료구조', review()))).toBe('/lectures/' + encodeURIComponent('자료구조'))
+    expect(await redirectOf(submitReview('자료구조', review()))).toBeNull()
+    expect((await store.listReviews('자료구조')).filter(r => r.authorId === me)).toHaveLength(1)
+    // 다른 과목은 쓸 수 있다
+    expect(await redirectOf(submitReview('운영체제', review()))).toBe('/lectures/' + encodeURIComponent('운영체제'))
   })
 })

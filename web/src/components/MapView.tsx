@@ -58,9 +58,10 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
       const on = p.id === selected
       const choose = () => pick.current(p.id)
       const dot = mod.circleMarker(pt(p), { radius: on ? 10 : 7, color: '#fff', weight: 2, fillColor: on ? '#27a395' : '#011d48', fillOpacity: 1 })
-        // 위성사진 지명이 영어·띄엄띄엄이라, 캠퍼스 건물 이름은 사용자 언어로 띄워 둔다(멀리서는 점만)
-        .bindTooltip(`<span class="pin-name">${esc(p.label)}</span>`, { permanent: true, direction: 'top', offset: [0, -8], className: on ? 'pin-label pin-label-on' : 'pin-label', interactive: true })
-        .on('click', choose).addTo(g)
+      // 위성사진 지명이 영어·띄엄띄엄이라, 캠퍼스 건물 이름은 사용자 언어로 띄워 둔다(멀리서는 점만).
+      // 경로를 보여 줄 때 도착 건물은 도착 표시가 이름을 대신한다(두 이름표가 겹치지 않게)
+      if (!(line && on)) dot.bindTooltip(`<span class="pin-name">${esc(p.label)}</span>`, { permanent: true, direction: 'top', offset: [0, -8], className: on ? 'pin-label pin-label-on' : 'pin-label', interactive: true })
+      dot.on('click', choose).addTo(g)
       // 점이 작아서 이름표도 누르면 고르게 한다. 점에는 건물 이름을 붙여 화면 낭독기·테스트가 이름으로 찾게 한다
       dot.getTooltip()?.getElement()?.addEventListener('click', choose)
       asButton(dot.getElement(), p.label, choose)

@@ -22,13 +22,13 @@ export default async function NoticeList({ lang, board, boardHref, mode = 'visit
             className={`press rounded-xl py-2.5 text-center text-[15px] font-semibold ${b === board ? 'bg-bg text-ink shadow-sm' : 'text-muted'}`}>{t(lang, b === 'academic' ? 'notices' : 'generalNotices')}</Link>
         ))}
       </nav>
-      {source === 'snapshot' && <p className="px-5 text-[13px] text-muted">{t(lang, 'snapshot')}</p>}
-      {items.length === 0 && <div className="card mx-3"><Empty icon={<Megaphone size={28} weight="fill" />} title={t(lang, 'noData')} /></div>}
+      {source === 'snapshot' && <p data-fail="notice_snapshot" className="px-5 text-[13px] text-muted">{t(lang, 'snapshot')}</p>}
+      {items.length === 0 && <div data-fail="notice_empty" className="card mx-3"><Empty icon={<Megaphone size={28} weight="fill" />} title={t(lang, 'noData')} /></div>}
       <ul className="space-y-3">
         {items.map(n => {
           const href = safeHttpUrl(n.url)
           return (
-            <li key={n.id} className="rise card mx-3 p-5">
+            <li key={n.id} data-notice={`${n.board}:${n.id}`} className="rise card mx-3 p-5">
               <p className="text-[13px] font-medium text-muted">{[n.date, n.dept].filter(Boolean).join(' · ')}</p>
               <p className="mt-1.5 text-[17px] font-bold leading-snug">{n.isToday && <TodayBadge lang={lang} />}{n.titleTr}</p>
               {n.titleTr !== n.title && <p lang="ko" className="mt-0.5 text-[13px] text-muted">{n.title}</p>}
@@ -44,7 +44,7 @@ export default async function NoticeList({ lang, board, boardHref, mode = 'visit
                 </div>
               )}
               {href && (
-                <a href={href} target="_blank" rel="noopener noreferrer" className="press mt-4 flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-bg-soft text-[15px] font-semibold">
+                <a href={href} target="_blank" rel="noopener noreferrer" data-track="original" className="press mt-4 flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-bg-soft text-[15px] font-semibold">
                   {t(lang, 'viewOriginalSite')}<ArrowSquareOut size={16} aria-hidden />
                 </a>
               )}

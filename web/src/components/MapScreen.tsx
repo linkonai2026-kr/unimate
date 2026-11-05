@@ -57,14 +57,17 @@ async function fetchRoute(from: LatLng, to: LatLng, lang: Lang): Promise<Route |
   }
 }
 
-/** 지금 위치 한 번. 권한 창을 그냥 두면 응답이 영영 없어서 10초 뒤엔 위치 없음으로 본다 */
+/**
+ * 지금 위치 한 번. 권한 창을 그냥 두면 응답이 영영 없어서 10초 뒤엔 위치 없음으로 본다.
+ * 10초 안에 잡은 위치는 그대로 쓴다(내 위치를 이미 따라가는 중이면 새 측정을 기다리다 시간 초과로 정문 출발이 되지 않게)
+ */
 function currentPosition(): Promise<LatLng | null> {
   return new Promise(resolve => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null)
     let settled = false
     const done = (v: LatLng | null) => { if (!settled) { settled = true; clearTimeout(timer); resolve(v) } }
     const timer = setTimeout(() => done(null), 10_000)
-    navigator.geolocation.getCurrentPosition(p => done({ lat: p.coords.latitude, lng: p.coords.longitude }), () => done(null), { enableHighAccuracy: true, timeout: 6000 })
+    navigator.geolocation.getCurrentPosition(p => done({ lat: p.coords.latitude, lng: p.coords.longitude }), () => done(null), { enableHighAccuracy: true, timeout: 6000, maximumAge: 10_000 })
   })
 }
 
@@ -82,6 +85,8 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   /** 경로 요청 번호: 새로 고르거나 안내를 끝내거나 화면을 떠나면 올려서, 늦게 온 옛 응답을 버린다 */
   const seq = useRef(0)
   const lastReroute = useRef(0)
+  /** 위치 감시로 마지막에 받은 내 위치와 받은 시각 */
+  const lastFix = useRef<{ pos: LatLng; at: number } | null>(null)
   const dest = pins.find(p => p.id === selected)
   const destLabel = dest ? `${dest.label}${room?.roomNo && dest.id === target ? ` ${room.roomNo}` : ''}` : ''
   const state = route && me ? navState(route, me) : null
@@ -98,7 +103,9 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
     const id = seq.current
     setPlanning(true)
     try {
-      const s = pickStart(await currentPosition())
+      // 내 위치를 이미 따라가는 중이면 그 위치로(새 측정을 기다리다 시간이 지나 정문 출발이 되지 않게)
+      const fix = lastFix.current && Date.now() - lastFix.current.at < 60_000 ? lastFix.current.pos : await currentPosition()
+      const s = pickStart(fix)
       if (id !== seq.current) return
       // 경로 서비스가 안 되면(횟수 제한·오류) 직선으로라도 안내한다
       const r = (await fetchRoute(s.pos, to, lang)) ?? straightRoute(s.pos, to)
@@ -140,6 +147,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
     if (!live || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(p => {
       const pos = { lat: p.coords.latitude, lng: p.coords.longitude }
+      lastFix.current = { pos, at: Date.now() }
       setMe(pos); setGps({ pos, acc: p.coords.accuracy })
     }, noop, { enableHighAccuracy: true, maximumAge: 1000 })
     return () => navigator.geolocation.clearWatch(id)
@@ -159,7 +167,11 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   useEffect(() => {
     if (!watchOn || live || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(
-      p => { setLocError(null); setGps({ pos: { lat: p.coords.latitude, lng: p.coords.longitude }, acc: p.coords.accuracy }) },
+      p => {
+        const pos = { lat: p.coords.latitude, lng: p.coords.longitude }
+        lastFix.current = { pos, at: Date.now() }
+        setLocError(null); setGps({ pos, acc: p.coords.accuracy })
+      },
       e => { if (e.code === e.PERMISSION_DENIED) { setLocError(window.isSecureContext ? 'denied' : 'https'); setWatchOn(false) } },
       { enableHighAccuracy: true, maximumAge: 1000 },
     )

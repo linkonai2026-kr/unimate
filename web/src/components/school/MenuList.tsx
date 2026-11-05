@@ -13,7 +13,7 @@ const dayHead = (d: string, lang: Lang) => (lang === 'ko' ? d : d.replace(/\(([�
 /** 식단을 못 받았을 때: 옛 정보 대신 분명한 안내, 다시 시도, 학교 사이트 바로 가기 */
 export function MenuError({ lang }: { lang: Lang }) {
   return (
-    <div role="alert" className="flex flex-col items-center gap-3 px-6 py-8 text-center">
+    <div role="alert" data-fail="menu_error" className="flex flex-col items-center gap-3 px-6 py-8 text-center">
       <WarningCircle size={36} weight="fill" className="text-danger" aria-hidden />
       <p className="text-[16px] font-bold">{t(lang, 'menuError')}</p>
       <RefreshButton label={t(lang, 'retry')} />
@@ -27,7 +27,7 @@ export function MenuError({ lang }: { lang: Lang }) {
 /** 받아 둔 식단을 보여 줄 때의 안내(한국 시각) */
 export function MenuCachedNote({ lang, at }: { lang: Lang; at: number }) {
   const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(at)
-  return <p role="status" className="mx-3 rounded-2xl bg-danger/8 px-4 py-2.5 text-[13px] font-medium text-danger">{t(lang, 'menuCached', { time })}</p>
+  return <p role="status" data-fail="menu_cached" className="mx-3 rounded-2xl bg-danger/8 px-4 py-2.5 text-[13px] font-medium text-danger">{t(lang, 'menuCached', { time })}</p>
 }
 
 export default async function MenuList({ lang }: { lang: Lang }) {

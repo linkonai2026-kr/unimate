@@ -1,5 +1,5 @@
 'use server'
-// 강의평가 작성 서버 액션(검증 → 저장 → 실시간 알림 → 응답 후 번역)
+// 강의평가 작성 서버 액션(검증 → 과목당 한 번 → 저장 → 실시간 알림 → 응답 후 번역)
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/lib/auth/session'
 import { cleanInput, translateLater } from '@/lib/board/flow'
@@ -22,8 +22,10 @@ export async function submitReview(courseName: string, f: FormData) {
     fields: Object.fromEntries(REVIEW_FIELDS.map(x => [x.key, cleanInput(f.get(x.key), 40)] as const).filter(([, v]) => v)),
     body: cleanInput(f.get('body'), REVIEW_LIMITS.body, true),
   }
-  if (!validateReview(input) || !reviewLimit(me.id)) return
+  if (!validateReview(input)) return
   const d = flowDeps()
+  // 과목마다 한 사람 한 번만(같은 사람이 여러 번 써서 평균 별점이 기울지 않게)
+  if ((await d.store.listReviews(input.courseName)).some(r => r.authorId === me.id) || !reviewLimit(me.id)) return
   const rv = await d.store.createReview({ ...input, authorId: me.id, lang: me.lang })
   const topic = `reviews:${rv.courseName}`
   await d.publish({ topic, kind: 'new', id: rv.id })

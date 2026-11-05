@@ -1,6 +1,6 @@
 'use client'
 // 익명 사용 통계 수집기(방문객 틀·로그인 탭 틀에 하나씩): 화면 보기·열림 시간, 언어 선택, 공지 누름·머문 시간, 도우미 버튼, 오류·실패 화면을 /api/events로 보낸다.
-// 무작위 세션 id만 쓰고 이름·아이디는 보내지 않는다. 무엇이 실패해도 화면에는 영향이 없다
+// 무작위 세션 id만 보내고 이름·아이디는 보내지 않는다(로그인 상태면 서버가 세션 쿠키로 계정을 붙인다). 무엇이 실패해도 화면에는 영향이 없다
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect } from 'react'
 
@@ -8,7 +8,7 @@ type Ev = { kind: string } & Record<string, unknown>
 
 const ctx = { visitor: true, lang: 'ko' }
 let sid: string | null = null
-let queue: Ev[] = []
+const queue: Ev[] = []
 let timer: ReturnType<typeof setTimeout> | null = null
 let installed = false
 let lastViewKey = ''
@@ -54,6 +54,8 @@ const nowMs = () => performance.now()
 /* ── 공지 화면 추적: 보인 시간(탭이 보일 때만), 카드별 화면에 보인 시간, 첫 누름까지 시간 ── */
 type NoticeView = {
   vid: string
+  /** 이미 보고한 보인 시간(첫 누름까지 시간은 이것까지 더한다) */
+  done: number
   active: number
   since: number | null
   cards: Map<Element, { board: string; id: string; total: number; since: number | null }>
@@ -63,7 +65,7 @@ type NoticeView = {
 let nv: NoticeView | null = null
 
 const pageVisible = () => document.visibilityState === 'visible'
-function activeMs(v: NoticeView) { return v.active + (v.since != null ? nowMs() - v.since : 0) }
+function activeMs(v: NoticeView) { return v.done + v.active + (v.since != null ? nowMs() - v.since : 0) }
 
 function pauseNotices() {
   if (!nv) return
@@ -82,11 +84,12 @@ function reportNotices() {
     if (c.total >= 1000 && n++ < 20) send({ kind: 'notice_dwell', scope: 'notice', board: c.board, id: c.id, ms: Math.round(c.total), vid: nv.vid })
     c.total = 0
   }
+  nv.done += nv.active
   nv.active = 0
 }
 
 function startNotices() {
-  const v: NoticeView = { vid: rand(10), active: 0, since: pageVisible() ? nowMs() : null, cards: new Map(), opened: new Set(), io: null }
+  const v: NoticeView = { vid: rand(10), done: 0, active: 0, since: pageVisible() ? nowMs() : null, cards: new Map(), opened: new Set(), io: null }
   nv = v
   try {
     v.io = new IntersectionObserver(entries => {

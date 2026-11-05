@@ -38,6 +38,8 @@ const copy = <T>(v: T): T => structuredClone(v)
 /** undefined 값은 빼고(Supabase도 JSON으로 보내면서 빠진다) */
 const defined = <T extends object>(o: T): Partial<T> => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>
 const between = (m: Message, a: string, b: string) => (m.fromId === a && m.toId === b) || (m.fromId === b && m.toId === a)
+/** profiles 표에 있는 열(supabase/schema.sql). 가입 정보에 다른 키가 섞이면 Supabase처럼 거절한다 */
+const PROFILE_KEYS = new Set(['handle', 'nickname', 'nationality', 'lang', 'passHash', 'avatar', 'major', 'year', 'photo', 'pins', 'violations', 'suspendedUntil', 'sanctionReason'])
 
 // ponytail: 매 호출 배열 전체 순회. 데모 규모(수백 건)면 충분, 커지면 Supabase 스토어를 쓴다
 export function createMemoryStore(seed = true): Store {
@@ -89,6 +91,9 @@ export function createMemoryStore(seed = true): Store {
     async getProfileByHandle(handle) { return copy(d.profiles.find(p => p.handle === handle) ?? null) },
     async listProfiles() { return copy([...d.profiles].sort(oldest)) },
     async createProfile(p) {
+      // Supabase가 없는 열(PGRST204)을 거절하는 것과 같게: 예를 들어 평문 password가 섞여 들어오면 저장하지 않는다
+      const unknown = Object.keys(p).filter(k => !PROFILE_KEYS.has(k))
+      if (unknown.length) throw new Error(`memory: unknown profile field ${unknown.join(', ')}`)
       // Supabase의 handle unique 제약과 같게
       if (d.profiles.some(x => x.handle === p.handle)) throw new Error('memory: handle already exists')
       const row: Profile = { ...copy(defined(p)), id: randomUUID(), createdAt: now() } as Profile
