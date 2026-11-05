@@ -9,10 +9,11 @@ describe('langForNation', () => {
     expect(langForNation('VN')).toBe('vi')
     expect(langForNation('CN')).toBe('zh')
     expect(langForNation('UZ')).toBe('uz')
+    expect(langForNation('JP')).toBe('ja')
   })
   it('화면 언어가 없는 나라·기타·모르는 값은 영어', () => {
     expect(langForNation('MN')).toBe('en')
-    expect(langForNation('JP')).toBe('en')
+    expect(langForNation('US')).toBe('en')
     expect(langForNation('XX')).toBe('en')
     expect(langForNation('ZZ')).toBe('en')
     expect(langForNation('__proto__')).toBe('en')

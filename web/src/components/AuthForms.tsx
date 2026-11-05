@@ -10,7 +10,7 @@ const label = 'block space-y-2 text-[14px] font-semibold text-muted'
 const hint = 'block text-[13px] font-normal text-[#8b93a1]'
 /** 아이디 칸: 휴대폰 키보드가 첫 글자를 대문자로 바꾸거나 고치지 않게 */
 const handleInput = { autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false } as const
-const DEFAULT_NATION: Record<Lang, string> = { ko: 'KR', en: 'US', vi: 'VN', zh: 'CN', uz: 'UZ' }
+const DEFAULT_NATION: Record<Lang, string> = { ko: 'KR', en: 'US', vi: 'VN', zh: 'CN', uz: 'UZ', ja: 'JP' }
 
 export function LoginForm({ lang, demo, next }: { lang: Lang; demo: { handle: string; password: string; label: string; nation: string }[]; next?: string | null }) {
   const [state, action, pending] = useActionState(login, undefined)

@@ -12,10 +12,10 @@ import type { Apply, MailDraft, MailInput, ParsedCourse, Summary } from './index
 const MODEL = 'claude-haiku-5-5'
 export type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const CODES = LANGS.map(l => l.code) as [Lang, ...Lang[]]
-const LANG_NAMES = 'ko (Korean), en (English), vi (Vietnamese), zh (Simplified Chinese), uz (Uzbek, Latin script)'
+const LANG_NAMES = 'ko (Korean), en (English), vi (Vietnamese), zh (Simplified Chinese), uz (Uzbek, Latin script), ja (Japanese)'
 // 이름 안에 쉼표가 있어(uz) 목록 문자열을 쪼개지 않고 언어별로 따로 둔다
 const LANG_NAME: Record<Lang, string> = {
-  ko: 'Korean', en: 'English', vi: 'Vietnamese', zh: 'Simplified Chinese', uz: "Uzbek (Latin script, o'zbekcha)",
+  ko: 'Korean', en: 'English', vi: 'Vietnamese', zh: 'Simplified Chinese', uz: "Uzbek (Latin script, o'zbekcha)", ja: 'Japanese',
 }
 export const langName = (lang: Lang) => LANG_NAME[lang] ?? lang
 
@@ -47,14 +47,14 @@ async function ask<S extends z.ZodType>(schema: S, system: string, content: Anth
   return schema.parse(res.parsed_output)
 }
 
-/** 다섯 언어로 옮긴 결과가 잘리지 않을 만큼(글자 수 × 8, 최대 16000) */
-const outputBudget = (fields: Record<string, string>) => Math.min(16_000, 1_500 + Object.values(fields).join('').length * 8)
+/** 여섯 언어로 옮긴 결과가 잘리지 않을 만큼(글자 수 × 10, 최대 16000) */
+const outputBudget = (fields: Record<string, string>) => Math.min(16_000, 1_500 + Object.values(fields).join('').length * 10)
 
 /** 번역 effort */
 export const TRANSLATE_EFFORT: Effort = 'low'
 
-/** 캠퍼스 건물 이름 용어집(학교 공식 캠퍼스맵 기준 5개 언어). 번역마다 같은 이름을 쓰게 하고, 캐시 최소 길이도 넘긴다 */
-const GLOSSARY = BUILDINGS.map(b => `- ${[b.name, ...b.aliases].join(' / ')} = en: ${b.names.en}; vi: ${b.names.vi}; zh: ${b.names.zh}; uz: ${b.names.uz}`).join('\n')
+/** 캠퍼스 건물 이름 용어집(학교 공식 캠퍼스맵 기준, 한국어 외 다섯 언어). 번역마다 같은 이름을 쓰게 하고, 캐시 최소 길이도 넘긴다 */
+const GLOSSARY = BUILDINGS.map(b => `- ${[b.name, ...b.aliases].join(' / ')} = en: ${b.names.en}; vi: ${b.names.vi}; zh: ${b.names.zh}; uz: ${b.names.uz}; ja: ${b.names.ja}`).join('\n')
 
 /**
  * 학생 은어 용어집. 일반 번역기는 "족보"를 family tree, "대출"을 loan, "꿀강"을 honey lecture로 옮긴다.

@@ -1,31 +1,31 @@
-// 강의평가 항목(에브리타임 역설계에서 이식, 5개 언어 라벨)과 집계·검증
+// 강의평가 항목(에브리타임 역설계에서 이식, 6개 언어 라벨)과 집계·검증
 import type { Lang } from './i18n'
 import type { NewReview } from './store/types'
 
 type Row = Record<Lang, string>
-const r = (ko: string, en: string, vi: string, zh: string, uz: string): Row => ({ ko, en, vi, zh, uz })
-const MANY = r('많음', 'A lot', 'Nhiều', '多', "Ko'p"), SOME = r('보통', 'Average', 'Bình thường', '一般', "O'rtacha"), NONE = r('없음', 'None', 'Không có', '没有', "Yo'q")
+const r = (ko: string, en: string, vi: string, zh: string, uz: string, ja: string): Row => ({ ko, en, vi, zh, uz, ja })
+const MANY = r('많음', 'A lot', 'Nhiều', '多', "Ko'p", '多い'), SOME = r('보통', 'Average', 'Bình thường', '一般', "O'rtacha", '普通'), NONE = r('없음', 'None', 'Không có', '没有', "Yo'q", 'なし')
 
 /** 과목명·교수명·본문 길이 상한(폼 maxLength와 같다) */
 export const REVIEW_LIMITS = { courseName: 40, professor: 20, body: 1000 } as const
 
 export const REVIEW_FIELDS: { key: string; label: Row; options: { value: string; label: Row }[] }[] = [
-  { key: 'hw', label: r('과제', 'Assignments', 'Bài tập', '作业', 'Topshiriqlar'), options: [{ value: '많음', label: MANY }, { value: '보통', label: SOME }, { value: '없음', label: NONE }] },
-  { key: 'team', label: r('조모임', 'Group work', 'Làm nhóm', '小组作业', 'Guruh ishi'), options: [{ value: '많음', label: MANY }, { value: '보통', label: SOME }, { value: '없음', label: NONE }] },
-  { key: 'grade', label: r('성적', 'Grading', 'Chấm điểm', '给分', 'Baholash'), options: [{ value: '너그러움', label: r('너그러움', 'Generous', 'Dễ', '宽松', 'Yumshoq') }, { value: '보통', label: SOME }, { value: '깐깐함', label: r('깐깐함', 'Strict', 'Khắt khe', '严格', "Qattiq") }] },
-  { key: 'att', label: r('출결', 'Attendance', 'Điểm danh', '考勤', 'Davomat'), options: [
-    { value: '전자출결', label: r('전자출결', 'App check-in', 'Điểm danh điện tử', '电子考勤', 'Elektron') },
-    { value: '직접호명', label: r('직접호명', 'Roll call', 'Gọi tên', '点名', "Ism bo'yicha") },
-    { value: '지정좌석', label: r('지정좌석', 'Assigned seats', 'Chỗ ngồi cố định', '固定座位', "Belgilangan o'rin") },
-    { value: '반영 안 함', label: r('반영 안 함', 'Not counted', 'Không tính', '不计入', 'Hisobga olinmaydi') },
-    { value: '혼용', label: r('혼용', 'Mixed', 'Kết hợp', '混合', 'Aralash') },
+  { key: 'hw', label: r('과제', 'Assignments', 'Bài tập', '作业', 'Topshiriqlar', '課題'), options: [{ value: '많음', label: MANY }, { value: '보통', label: SOME }, { value: '없음', label: NONE }] },
+  { key: 'team', label: r('조모임', 'Group work', 'Làm nhóm', '小组作业', 'Guruh ishi', 'グループワーク'), options: [{ value: '많음', label: MANY }, { value: '보통', label: SOME }, { value: '없음', label: NONE }] },
+  { key: 'grade', label: r('성적', 'Grading', 'Chấm điểm', '给分', 'Baholash', '成績評価'), options: [{ value: '너그러움', label: r('너그러움', 'Generous', 'Dễ', '宽松', 'Yumshoq', '寛大') }, { value: '보통', label: SOME }, { value: '깐깐함', label: r('깐깐함', 'Strict', 'Khắt khe', '严格', "Qattiq", '厳しめ') }] },
+  { key: 'att', label: r('출결', 'Attendance', 'Điểm danh', '考勤', 'Davomat', '出席確認'), options: [
+    { value: '전자출결', label: r('전자출결', 'App check-in', 'Điểm danh điện tử', '电子考勤', 'Elektron', 'アプリ出席') },
+    { value: '직접호명', label: r('직접호명', 'Roll call', 'Gọi tên', '点名', "Ism bo'yicha", '点呼') },
+    { value: '지정좌석', label: r('지정좌석', 'Assigned seats', 'Chỗ ngồi cố định', '固定座位', "Belgilangan o'rin", '指定席') },
+    { value: '반영 안 함', label: r('반영 안 함', 'Not counted', 'Không tính', '不计入', 'Hisobga olinmaydi', '反映なし') },
+    { value: '혼용', label: r('혼용', 'Mixed', 'Kết hợp', '混合', 'Aralash', '併用') },
   ] },
-  { key: 'exam', label: r('시험', 'Exams', 'Thi', '考试', 'Imtihonlar'), options: [
+  { key: 'exam', label: r('시험', 'Exams', 'Thi', '考试', 'Imtihonlar', '試験'), options: [
     { value: '없음', label: NONE },
-    { value: '한 번', label: r('한 번', 'Once', 'Một lần', '一次', 'Bir marta') },
-    { value: '두 번', label: r('두 번', 'Twice', 'Hai lần', '两次', 'Ikki marta') },
-    { value: '세 번', label: r('세 번', 'Three times', 'Ba lần', '三次', "Uch marta") },
-    { value: '네 번 이상', label: r('네 번 이상', 'Four or more', 'Bốn lần trở lên', '四次以上', "To'rt va undan ko'p") },
+    { value: '한 번', label: r('한 번', 'Once', 'Một lần', '一次', 'Bir marta', '1回') },
+    { value: '두 번', label: r('두 번', 'Twice', 'Hai lần', '两次', 'Ikki marta', '2回') },
+    { value: '세 번', label: r('세 번', 'Three times', 'Ba lần', '三次', "Uch marta", '3回') },
+    { value: '네 번 이상', label: r('네 번 이상', 'Four or more', 'Bốn lần trở lên', '四次以上', "To'rt va undan ko'p", '4回以上') },
   ] },
 ]
 

@@ -13,7 +13,7 @@ if (job === 'notices') {
   for (const board of ['academic', 'general'] as const) {
     const snaps = await buildNotices(board, store, Date.now(), { retitle: flags.includes('--retitle') })
     const missing = Object.values(snaps).reduce((s, x) => s + x.missing, 0)
-    console.log(`${board}: ${snaps.ko.items.length}건 × 5개 언어, 요약 못 만든 것 ${missing}개`)
+    console.log(`${board}: ${snaps.ko.items.length}건 × ${Object.keys(snaps).length}개 언어, 요약 못 만든 것 ${missing}개`)
   }
 } else if (job === 'menu') {
   console.log((await buildMenu(store)) ? '메뉴 사전 완료' : '식단을 받지 못했어요')

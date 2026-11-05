@@ -6,7 +6,7 @@ import { FACILITIES, facilitiesFor } from '@/lib/map/facilities'
 import { AUDIENCE, audienceView } from '@/lib/visit'
 
 describe('대상별 안내 자료', () => {
-  it('묶음마다 다섯 언어 제목·설명이 있고, 건물과 시설이 실제로 있다', () => {
+  it('묶음마다 여섯 언어 제목·설명이 있고, 건물과 시설이 실제로 있다', () => {
     expect(AUDIENCE.map(g => g.id)).toEqual(['visitor', 'resident', 'staff'])
     for (const g of AUDIENCE) {
       for (const { code } of LANGS) {
