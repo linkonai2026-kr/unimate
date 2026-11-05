@@ -1,0 +1,56 @@
+// 방문객 모드 틀: 상단(로고·방문객 표시·언어·로그인)과 하단 4개 탭(홈·지도·학식·공지). 언어는 주소의 ?lang=으로 유지
+import { ForkKnife, House, MapPin, Megaphone, Translate } from '@phosphor-icons/react/dist/ssr'
+import Image from 'next/image'
+import Link from 'next/link'
+import type { ReactNode } from 'react'
+import { LANGS, t, type Lang, type UiKey } from '@/lib/i18n'
+import { visitHref } from '@/lib/visit'
+
+export type VisitTab = 'home' | 'map' | 'menu' | 'notices'
+
+const TABS: { id: VisitTab; path: string; key: UiKey; Icon: typeof House }[] = [
+  { id: 'home', path: '/visit', key: 'tab.home', Icon: House },
+  { id: 'map', path: '/visit/map', key: 'tab.map', Icon: MapPin },
+  { id: 'menu', path: '/visit/menu', key: 'weekMenu', Icon: ForkKnife },
+  { id: 'notices', path: '/visit/notices', key: 'notices', Icon: Megaphone },
+]
+
+export default function VisitShell({ lang, active, query = {}, children }: { lang: Lang; active: VisitTab; query?: Record<string, string>; children: ReactNode }) {
+  const here = (TABS.find(x => x.id === active) ?? TABS[0]).path
+  return (
+    <div lang={lang} className="mx-auto min-h-dvh max-w-[480px] bg-bg-soft pb-24">
+      {/* 높이 56px: 지도 화면이 상단 56px·하단 64px를 빼고 높이를 잡는다 */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-bg/95 px-3 backdrop-blur">
+        <Link href={visitHref('/visit', lang)} className="press" aria-label="Unimate"><Image src="/brand/logo.png" alt="Unimate" width={96} height={23} priority /></Link>
+        <span className="rounded-md bg-teal/10 px-1.5 py-0.5 text-[11px] font-bold text-teal">{t(lang, 'visitor')}</span>
+        {/* 언어를 바꾸면 화면이 같은 틀로 다시 그려지므로, key로 메뉴를 새로 만들어 닫힌 채로 시작한다 */}
+        <details key={lang} className="relative ml-auto">
+          <summary aria-label={t(lang, 'language')} className="press flex h-10 cursor-pointer list-none items-center gap-1 rounded-full px-2.5 text-[14px] font-semibold"><Translate size={20} aria-hidden />{LANGS.find(l => l.code === lang)?.label}</summary>
+          <nav aria-label={t(lang, 'language')} className="absolute right-0 top-11 z-40 w-40 overflow-hidden rounded-2xl bg-bg shadow-[0_8px_24px_-8px_rgba(1,29,72,.35)]">
+            {LANGS.map(l => (
+              <Link key={l.code} href={visitHref(here, l.code, query)} lang={l.code} hrefLang={l.code} aria-current={l.code === lang ? 'true' : undefined}
+                className={`block px-4 py-3 text-[15px] ${l.code === lang ? 'bg-bg-soft font-bold text-navy' : ''}`}>{l.label}</Link>
+            ))}
+          </nav>
+        </details>
+        <Link href={`/login?lang=${lang}`} className="press flex h-10 items-center rounded-full bg-navy px-3.5 text-[14px] font-bold text-white">{t(lang, 'login')}</Link>
+      </header>
+      <main>{children}</main>
+      <nav aria-label={t(lang, 'visitor')} className="fixed inset-x-0 bottom-0 z-20 bg-bg/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_var(--line)] backdrop-blur">
+        <ul className="mx-auto flex max-w-[480px]">
+          {TABS.map(({ id, path, key, Icon }) => {
+            const on = id === active
+            return (
+              <li key={id} className="flex-1">
+                <Link href={visitHref(path, lang)} aria-current={on ? 'page' : undefined} className={`press flex h-16 flex-col items-center justify-center gap-1 px-1 text-center text-[11px] leading-tight ${on ? 'font-bold text-navy' : 'font-medium text-[#a4abb8]'}`}>
+                  <Icon size={26} weight={on ? 'fill' : 'regular'} aria-hidden />
+                  {t(lang, key)}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+    </div>
+  )
+}
