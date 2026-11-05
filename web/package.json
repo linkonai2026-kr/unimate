@@ -12,7 +12,8 @@
     "e2e": "playwright test",
     "seed:supabase": "tsx --env-file=.env.local scripts/seed-supabase.mts",
     "reset:supabase": "tsx --env-file=.env.local scripts/reset-supabase-demo.mts",
-    "snapshots": "tsx scripts/make-snapshots.ts"
+    "snapshots": "tsx scripts/make-snapshots.ts",
+    "rebuild:school": "tsx --conditions react-server --env-file=.env.local scripts/rebuild-school.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

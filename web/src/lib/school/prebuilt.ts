@@ -62,7 +62,7 @@ async function pool<T, R>(items: T[], n: number, run: (x: T) => Promise<R>): Pro
 }
 
 /** 공지 한 게시판을 다섯 언어로 만든다. prev: 지난 저장본(이미 요약한 공지는 그대로 쓴다) */
-export async function buildNotices(board: NoticeBoard, store: CacheStore = getCacheStore(), now = Date.now()): Promise<Record<Lang, NoticeSnap>> {
+export async function buildNotices(board: NoticeBoard, store: CacheStore = getCacheStore(), now = Date.now(), opts: { retitle?: boolean } = {}): Promise<Record<Lang, NoticeSnap>> {
   const day = kstDay(now).iso
   const { items, source } = await getNotices(board, NOTICE_LIMIT)
   const prev = Object.fromEntries(await Promise.all(CODES.map(async l => [l, await store.get<NoticeSnap>(noticeKey(board, l)).catch(() => null)] as const))) as Record<Lang, NoticeSnap | null>
@@ -75,12 +75,12 @@ export async function buildNotices(board: NoticeBoard, store: CacheStore = getCa
     return html ? { ...parseNoticeDetail(html), body: parseNoticeBody(html) } : null
   })
 
-  // 제목 번역: 언어마다 한 번(새 제목만)
+  // 제목 번역: 언어마다 한 번(새 제목만). retitle이면 번역 지침을 고친 뒤처럼 저장된 제목도 모두 다시 번역(요약은 그대로 둔다)
   const titles = Object.fromEntries(await Promise.all(CODES.map(async l => {
-    const need = items.filter(n => !old(l, n.id))
+    const need = opts.retitle ? items : items.filter(n => !old(l, n.id))
     const tr = l === 'ko' || need.length === 0 ? need.map(n => n.title) : await translateList(need.map(n => n.title), l)
     const map = new Map(need.map((n, i) => [n.id, tr[i] || n.title]))
-    return [l, items.map(n => old(l, n.id)?.titleTr ?? map.get(n.id) ?? n.title)] as const
+    return [l, items.map(n => (opts.retitle ? undefined : old(l, n.id)?.titleTr) ?? map.get(n.id) ?? n.title)] as const
   }))) as Record<Lang, string[]>
 
   // 요약: 새 공지 × 언어만 AI를 부른다

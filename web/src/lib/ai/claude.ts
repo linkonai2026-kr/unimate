@@ -179,7 +179,7 @@ export async function claudeTimetable(image: { data: string; mediaType: 'image/p
 }
 
 /** 목록 번역 지시문(학식 메뉴, 커뮤니티 이용규칙처럼 짧은 한국어 문장 목록) */
-const LIST_SYSTEM = `Translate a list of short Korean texts for an international student at a Korean university (for example cafeteria menu items or community rules), into the language the request asks for. Keep each item's meaning and tone. If a dish has no direct equivalent, give a short descriptive name (for example "dakgalbi (spicy stir-fried chicken)"). Return the same number of items in the same order.`
+const LIST_SYSTEM = `Translate a list of short Korean texts for an international student at a Korean university (for example cafeteria menu items or community rules), into the language the request asks for. Keep each item's meaning and tone. If a dish has no direct equivalent, give a short descriptive name (for example "dakgalbi (spicy stir-fried chicken)"). In university notices, 수학 usually means 修學 (taking courses / studying, as in 학점교류 수학 = credit-exchange study), not mathematics (數學), and 계절수업 means a seasonal (summer/winter) session. Return the same number of items in the same order.`
 
 /** 한 번에 보내는 목록 크기. 학식 한 주치(수십 개)를 한 요청으로 보내면 제한 시간을 넘겨서 나눠 동시에 보낸다 */
 const LIST_CHUNK = 20

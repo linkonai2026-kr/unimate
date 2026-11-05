@@ -117,20 +117,28 @@ export function createMemoryMetrics(limit = MEMORY_LIMIT): MetricsStore {
 const MISSING = new Set(['42P01', '42703', 'PGRST204', 'PGRST205'])
 const PAGE = 1000, MAX_PAGES = 100
 
-/** events 표가 없으면 처음 한 번만 경고하고 이벤트를 버린다(앱은 그대로 돈다) */
-export function createSupabaseMetrics(db: SupabaseClient): MetricsStore {
+/** 표가 없다고 본 뒤 다시 확인하기까지(SQL을 나중에 실행해도 서버를 다시 띄우지 않고 1분 안에 저장이 시작되게) */
+const MISSING_RETRY_MS = 60_000
+
+/** events 표가 없으면 경고하고 이벤트를 버린다(앱은 그대로 돈다). 1분마다 다시 확인하고, 성공하면 바로 정상으로 돌아온다 */
+export function createSupabaseMetrics(db: SupabaseClient, now: () => number = Date.now): MetricsStore {
   let missing = false
+  let missingAt = 0
   const check = (e: PostgrestError | null): boolean => {
-    if (!e) return true
+    if (!e) {
+      missing = false
+      return true
+    }
     if (MISSING.has(e.code)) {
       if (!missing) console.warn('[metrics] events 표가 없어 사용 통계를 버립니다. supabase/schema.sql 끝의 "익명 사용 통계" 블록을 실행하세요')
       missing = true
+      missingAt = now()
     } else console.warn('[metrics]', e.code, e.message)
     return false
   }
   return {
     async add(list) {
-      if (missing || list.length === 0) return
+      if (list.length === 0 || (missing && now() - missingAt < MISSING_RETRY_MS)) return
       const { error } = await db.from('events').insert(list)
       check(error)
     },
