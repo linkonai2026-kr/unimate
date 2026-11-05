@@ -56,6 +56,26 @@ export const TRANSLATE_EFFORT: Effort = 'low'
 /** 캠퍼스 건물 이름 용어집(학교 공식 캠퍼스맵 기준 5개 언어). 번역마다 같은 이름을 쓰게 하고, 캐시 최소 길이도 넘긴다 */
 const GLOSSARY = BUILDINGS.map(b => `- ${[b.name, ...b.aliases].join(' / ')} = en: ${b.names.en}; vi: ${b.names.vi}; zh: ${b.names.zh}; uz: ${b.names.uz}`).join('\n')
 
+/**
+ * 학생 은어 용어집. 일반 번역기는 "족보"를 family tree, "대출"을 loan, "꿀강"을 honey lecture로 옮긴다.
+ * 뜻을 영어로 적어 두고 언어마다 자연스러운 말로 풀게 한다(단어를 그대로 옮기지 않게)
+ */
+const SLANG = `Korean student slang. Translate the meaning, not the literal words (for example 족보 is never "family tree", 꿀강 is never "honey lecture").
+Always write the meaning in the target language. You may add the Korean word in Hangul in parentheses right after the meaning, like "past exam notes (족보)" or "往届试题和笔记（족보）". Never leave the Korean word on its own, and never write it with Chinese characters (族谱 and 族保 are wrong) or Latin letters:
+- 꿀강, 꿀교양 = an easy course with a light workload and generous grading (꿀교양: such a general-education course)
+- 족보 = past exam questions and notes passed down from senior students
+- 공강 = a free period between classes; 우주공강 = a very long gap between classes
+- 팀플, 조별과제 = a group project for a class
+- 휴강 = class cancelled; 보강 = make-up class
+- 출첵 = attendance check; 대출 (about attendance) = answering the roll call for an absent friend, not a loan
+- 수강신청 = course registration; 광클 = clicking as fast as possible when course registration opens; 정정기간 = add/drop period
+- 재수강 = retaking a course; 학고 = academic probation; 휴학 = leave of absence; 복학 = returning from leave
+- 과대 = class representative of a department year; 과방 = department student lounge; 동방 = club room
+- 개강 = start of semester; 종강 = end of semester; 개총, 종총 = department party at the start or end of semester; MT, 엠티 = overnight trip with a department or club
+- 새내기, 새기 = first-year student; 새터 = freshman orientation camp; 화석 = (joking) a student who has been at the university for many years
+- 학식 = school cafeteria meal; 긱사 = dormitory; 에타 = Everytime, the Korean campus community app
+- 졸작 = graduation project; 중간 = midterm exam; 기말 = final exam
+- 선배 = senior student; 후배 = junior student`
 /** 번역 고정 지시문(모든 요청에서 글자 하나 다르지 않아야 캐시가 맞는다) */
 export const TRANSLATE_SYSTEM = `You translate posts, comments and direct messages for Unimate, a campus community app where Korean and international students at Kangwon National University Samcheok Campus talk to each other.
 
@@ -67,7 +87,8 @@ Detect the language the text is written in, then translate every field into all 
 - When earlier messages are given, they are context only: do not translate or return them. Use them so the translation follows the conversation: pick the meaning that fits when a word is ambiguous (for example 차 can be "car" or "tea", 배 can be "boat", "pear" or "stomach", 눈 can be "snow" or "eye"), resolve omitted subjects, keep place, time and name wording consistent with earlier messages, and match the tone of the thread.
 
 Campus building names. Use exactly these names in each language (the Korean side lists the official name, then common short names students use):
-${GLOSSARY}`
+${GLOSSARY}
+${SLANG}`
 
 /** 번역 요청 본문: 앞선 대화(참고용) + 번역할 칸 */
 export function translateUser(fields: Record<string, string>, context: string[] = []): string {

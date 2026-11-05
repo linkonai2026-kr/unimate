@@ -126,6 +126,9 @@ describe('문맥을 이어가는 번역', () => {
     expect(TRANSLATE_SYSTEM).toContain('5공학관')
     expect(TRANSLATE_SYSTEM).toContain('Tòa Kỹ thuật 5')
     expect(TRANSLATE_SYSTEM).not.toContain('Fields (JSON)')
+    // 학생 은어는 글자 그대로가 아니라 뜻으로(족보 ≠ family tree)
+    expect(TRANSLATE_SYSTEM).toContain('족보 = past exam questions')
+    expect(TRANSLATE_SYSTEM).toContain('공강 = a free period')
     // Haiku 5.5 최소 캐시 길이 512토큰을 넘기려면 대략 1500자 이상
     expect(TRANSLATE_SYSTEM.length).toBeGreaterThan(1500)
   })
