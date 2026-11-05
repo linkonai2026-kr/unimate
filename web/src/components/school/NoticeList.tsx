@@ -1,6 +1,7 @@
 // 삼척캠퍼스 학사·일반 공지 목록(학생 화면·방문객 화면 공통): 학교 사이트 실제 정보, 오늘(한국) 글 표시, 키가 있으면 3줄 요약·마감 D-day
 import { ArrowSquareOut, ImageSquare, Megaphone, Paperclip } from '@phosphor-icons/react/dist/ssr'
 import Link from 'next/link'
+import ApplyHelper from '@/components/ApplyHelper'
 import { DayRefresh } from '@/components/BottomNav'
 import { TodayBadge } from '@/components/SchoolCards'
 import { Empty } from '@/components/ui'
@@ -9,7 +10,8 @@ import { kstDay } from '@/lib/school/memo'
 import { safeHttpUrl, type NoticeBoard } from '@/lib/school/notices'
 import { noticeCards } from '@/lib/school/service'
 
-export default async function NoticeList({ lang, board, boardHref }: { lang: Lang; board: NoticeBoard; boardHref: Record<NoticeBoard, string> }) {
+/** mode: 학생 화면이면 "신청 준비해 줘"로 내 마감에 담을 수 있다. savedIds: 이미 담은 공지 번호 */
+export default async function NoticeList({ lang, board, boardHref, mode = 'visit', savedIds = [] }: { lang: Lang; board: NoticeBoard; boardHref: Record<NoticeBoard, string>; mode?: 'student' | 'visit'; savedIds?: string[] }) {
   const { items, source } = await noticeCards(board, lang, 8)
   return (
     <div className="space-y-3 pb-6 pt-1">
@@ -34,6 +36,7 @@ export default async function NoticeList({ lang, board, boardHref }: { lang: Lan
               {n.bullets.length > 0
                 ? <ul className="mt-3 space-y-1 text-[15px]">{n.bullets.map((b, i) => <li key={i} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden />{b}</li>)}</ul>
                 : n.excerpt && <p lang="ko" className="mt-3 line-clamp-3 text-[15px] leading-relaxed text-ink/80">{n.excerpt}</p>}
+              <ApplyHelper n={n} lang={lang} mode={mode} saved={savedIds.includes(`${n.board}:${n.id}`)} />
               {(n.images > 0 || n.files.length > 0) && (
                 <div className="mt-3 space-y-1.5 rounded-2xl bg-bg-soft px-4 py-3 text-[13px] text-muted">
                   {n.images > 0 && <p className="flex items-center gap-1.5"><ImageSquare size={16} aria-hidden />{t(lang, 'imagesN', { n: n.images })}</p>}

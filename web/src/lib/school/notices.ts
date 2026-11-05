@@ -1,5 +1,6 @@
 // 강원대 홈페이지에서 삼척캠퍼스 학사·일반 공지를 읽어 오는 파서와 fetch(실패 시 스냅샷)
 import * as cheerio from 'cheerio'
+import { dDayOf } from '../deadlines/when'
 import { fetchHtml, kstDay, type Fetcher, type KstDay } from './memo'
 import snapshot from './snapshot/notices.json'
 
@@ -42,14 +43,8 @@ export function postedToday(date: string, now: Date | number = Date.now()): bool
 }
 
 /** 마감까지 남은 날 표시(한국 날짜 기준): "D-3", 오늘이면 "D-day", 지났거나 못 읽으면 null */
-export function dDay(deadline: string, now: Date | number = Date.now()): string | null {
-  const today = kstDay(now)
-  const p = parseDay(deadline, today)
-  if (!p) return null
-  const diff = Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(today.y, today.m - 1, today.d)) / 86_400_000)
-  if (!Number.isFinite(diff) || diff < 0) return null
-  return diff === 0 ? 'D-day' : `D-${diff}`
-}
+// AI가 주는 "11/17 18:00" 형식과 기간("11/10~11/17")도 읽도록 마감 전용 해석기를 쓴다
+export const dDay = (deadline: string, now: Date | number = Date.now()): string | null => dDayOf(deadline, now)
 
 export function parseNoticeList(html: string, board: NoticeBoard): Notice[] {
   const $ = cheerio.load(html)

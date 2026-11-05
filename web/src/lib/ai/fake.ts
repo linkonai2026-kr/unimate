@@ -47,7 +47,10 @@ export function fakeSummary(title: string, body: string): Summary {
   const sentences = body.split(/(?<=[.!?。])\s+|\n+/).map(s => s.trim()).filter(Boolean)
   const bullets = [...sentences, title, title, title].map(s => s.trim()).filter(Boolean).slice(0, 3)
   const m = body.match(/\d{4}\.\s?\d{1,2}\.\s?\d{1,2}|\d{1,2}월\s?\d{1,2}일/)
-  return { bullets, deadline: m ? m[0] : null }
+  // 신청 방법 짐작: 본문에 주소가 있으면 온라인, "방문·제출"이 보이면 방문 제출(서류 목록은 Claude만 뽑는다)
+  const url = body.match(/https?:\/\/[^\s<>"')]+/)?.[0] ?? null
+  const how = url ? 'online' : /방문|제출/.test(body) ? 'visit' : null
+  return { bullets, deadline: m ? m[0] : null, apply: how ? { how, where: null, url, documents: [] } : null }
 }
 
 /**

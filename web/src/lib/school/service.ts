@@ -1,6 +1,6 @@
 // 공지 요약·식단 번역을 사용자 언어로 만들어 캐시하는 서버 도우미(한국 날짜 기준, 실패해도 화면에 예외를 올리지 않는다)
 import 'server-only'
-import { summarizeNotice, translateList, type Summary } from '../ai'
+import { summarizeNotice, translateList, type Apply, type Summary } from '../ai'
 import { has } from '../env'
 import type { Lang } from '../i18n'
 import { getMenu, menuTargetDay, type MenuWeek } from './menu'
@@ -40,9 +40,10 @@ function detailOf(n: Notice): Promise<Detail> {
 
 /** 학교 사이트의 실제 정보(제목·부서·날짜·본문 앞부분·첨부)에, AI 키가 있을 때만 3줄 요약·마감일·번역 제목을 덧붙인다 */
 /** isToday: 오늘(한국) 올라온 글, dday: 마감까지 "D-3"(한국 날짜 기준, 지났거나 모르면 null) */
-export type NoticeCard = Notice & { titleTr: string; excerpt: string; images: number; files: string[]; bullets: string[]; deadline: string | null; isToday: boolean; dday: string | null }
+/** apply: AI가 뽑은 신청 방법(제출처·신청 주소·준비 서류), 없으면 null */
+export type NoticeCard = Notice & { titleTr: string; excerpt: string; images: number; files: string[]; bullets: string[]; deadline: string | null; isToday: boolean; dday: string | null; apply: Apply | null }
 
-const bare = (n: Notice): NoticeCard => ({ ...n, titleTr: n.title, excerpt: '', images: 0, files: [], bullets: [], deadline: null, isToday: postedToday(n.date), dday: null })
+const bare = (n: Notice): NoticeCard => ({ ...n, titleTr: n.title, excerpt: '', images: 0, files: [], bullets: [], deadline: null, isToday: postedToday(n.date), dday: null, apply: null })
 
 /** 공지 목록: 한국 날짜를 키에 넣어 자정이 지나면 새로 받는다(10분 캐시). 사이트가 안 될 때의 스냅샷은 캐시하지 않는다 */
 function noticeList(board: NoticeBoard, limit: number) {
@@ -63,7 +64,7 @@ export async function noticeCards(board: NoticeBoard, lang: Lang, limit = 3): Pr
         ? await memo(`sum:${n.board}:${n.id}:${lang}`, () => summarizeNotice(n.title, d.body, lang)).catch(() => null)
         : null
       const deadline = s?.deadline ?? null
-      return { ...n, titleTr: titles[i] || n.title, excerpt: d.text.slice(0, 160), images: d.images, files: d.files, bullets: s?.bullets ?? [], deadline, isToday: postedToday(n.date), dday: deadline ? dDay(deadline) : null }
+      return { ...n, titleTr: titles[i] || n.title, excerpt: d.text.slice(0, 160), images: d.images, files: d.files, bullets: s?.bullets ?? [], deadline, isToday: postedToday(n.date), dday: deadline ? dDay(deadline) : null, apply: s?.apply ?? null }
     }))
     return { items: cards, source }
   } catch (e) {

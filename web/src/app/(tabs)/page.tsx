@@ -6,6 +6,7 @@ import Avatar from '@/components/Avatar'
 import { DayRefresh } from '@/components/BottomNav'
 import LiveRefresh from '@/components/LiveRefresh'
 import MiniMap from '@/components/MiniMap'
+import MyDeadlines from '@/components/MyDeadlines'
 import { Bubble, Heart } from '@/components/PostCard'
 import { MenuCard, NoticeCard } from '@/components/SchoolCards'
 import { Flag, IconBox, Row, Section, type Tone } from '@/components/ui'
@@ -106,6 +107,8 @@ export default async function Home() {
         ))}
       </nav>
 
+      {/* 공지에서 "신청 준비해 줘"로 담은 마감: 학사공지보다 먼저 */}
+      <Suspense fallback={<div className="card mx-3 h-32 animate-pulse" />}><MyDeadlines me={me} /></Suspense>
       <Suspense fallback={<div className="card mx-3 h-44 animate-pulse" />}><NoticeCard lang={lang} /></Suspense>
       <Suspense fallback={<div className="card mx-3 h-40 animate-pulse" />}><MenuCard lang={lang} /></Suspense>
 

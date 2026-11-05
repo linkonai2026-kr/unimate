@@ -7,7 +7,12 @@ import { claudeList, claudeModerate, claudeSummary, claudeTimetable, claudeTrans
 import { SAMPLE_TIMETABLE, demoTranslate, fakeModerate, fakeSummary, fakeTranslate } from './fake'
 
 export interface ParsedCourse { name: string; place: string; day: number; start: string; end: string }
-export interface Summary { bullets: string[]; deadline: string | null }
+/**
+ * 공지에서 뽑은 신청 방법. how: 온라인 신청·방문 제출·이메일·기타, where: 제출처(부서·건물·호실을 적힌 대로),
+ * url: 본문에 그대로 적힌 신청 주소만, documents: 준비할 서류·준비물
+ */
+export interface Apply { how: 'online' | 'visit' | 'email' | 'other'; where: string | null; url: string | null; documents: string[] }
+export interface Summary { bullets: string[]; deadline: string | null; apply?: Apply | null }
 type ImageInput = { data: string; mediaType: 'image/png' | 'image/jpeg' | 'image/webp' }
 
 const TRANSLATE_MS = 25_000, SUMMARY_MS = 12_000, LIST_MS = 8_000, TIMETABLE_MS = 12_000, MODERATE_MS = 15_000

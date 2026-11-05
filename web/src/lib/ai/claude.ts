@@ -6,7 +6,7 @@ import { LANGS, type Lang } from '../i18n'
 import { BUILDINGS } from '../map/buildings'
 import { RULE_IDS, RULES, type ModerationInput, type Verdict } from '../moderation'
 import type { TrMap } from '../types'
-import type { ParsedCourse, Summary } from './index'
+import type { Apply, ParsedCourse, Summary } from './index'
 
 /** 대량·실시간 번역이라 일부러 싸고 빠른 모델을 쓴다 */
 const MODEL = 'claude-haiku-5-5'
@@ -101,10 +101,42 @@ Return exactly 3 short bullets: what it is, who it applies to and what is requir
 "deadline" is the last moment the student themself must act, in a short form like "10/31 18:00", or null if there is none.
 - If the notice gives separate deadlines for different steps (for example the student submits to their department by one date, and the department forwards to an office by a later date), use the student's own deadline, the earlier one.
 - If it gives a period, use the end of the period.
-- Mention the same student deadline in the bullets, never the department's or office's later date.`
+- Mention the same student deadline in the bullets, never the department's or office's later date.
+
+"apply" is what the student needs to actually apply, or null if the notice asks nothing of the student:
+- "how": "online" (a website or form), "visit" (submit in person), "email", or "other".
+- "where": the office or place to submit to, written as in the notice and including the building and room if given (for example "학생지원과 (대학본부 2층)"), or null. Keep Korean place names in Korean so they can be found on the campus map.
+- "url": the application link only if it is written in the body exactly, otherwise null. Never guess or build a link.
+- "documents": the documents or items to prepare, each short, in the requested language. Empty if none are listed.`
+
+const applySchema = z.object({
+  how: z.enum(['online', 'visit', 'email', 'other']),
+  where: z.string().nullable(),
+  url: z.string().nullable(),
+  documents: z.array(z.string()),
+}).nullable()
+
+/** 신청 정보 정리: 본문에 실제로 있는 http(s) 주소만 남기고, 빈 칸·긴 목록을 다듬는다 */
+export function tidyApply(a: z.infer<typeof applySchema>, body: string): Apply | null {
+  if (!a) return null
+  const url = a.url?.trim() ?? ''
+  let safe: string | null = null
+  if (url && body.includes(url)) {
+    try {
+      const u = new URL(url)
+      if (u.protocol === 'https:' || u.protocol === 'http:') safe = u.href
+    } catch { /* 주소가 아니면 버린다 */ }
+  }
+  return {
+    how: a.how,
+    where: a.where?.trim().slice(0, 80) || null,
+    url: safe,
+    documents: a.documents.map(d => d.trim().slice(0, 80)).filter(Boolean).slice(0, 8),
+  }
+}
 
 export async function claudeSummary(title: string, body: string, lang: Lang, signal?: AbortSignal): Promise<Summary> {
-  const schema = z.object({ bullets: z.array(z.string()), deadline: z.string().nullable() })
+  const schema = z.object({ bullets: z.array(z.string()), deadline: z.string().nullable(), apply: applySchema })
   const out = await ask(schema, NOTICE_SYSTEM, `Write in ${langName(lang)}.
 
 Title: ${title}
@@ -113,7 +145,7 @@ Body:
 ${body.slice(0, 6000)}`, 'medium', 1500, signal)
   const bullets = out.bullets.map(b => b.trim()).filter(Boolean).slice(0, 3)
   if (bullets.length === 0) throw new Error('claude: empty summary')
-  return { bullets, deadline: out.deadline?.trim() || null }
+  return { bullets, deadline: out.deadline?.trim() || null, apply: tidyApply(out.apply, body) }
 }
 
 /** 시간표 인식 effort */

@@ -28,7 +28,9 @@ function dates(s: string): Hit[] {
   take(/(\d{4})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,2})/g, m => [Number(m[1]), Number(m[2]), Number(m[3])])
   take(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/g, m => [null, Number(m[1]), Number(m[2])])
   // "11/17", "11.17": 앞뒤에 숫자·점·빗금이 더 붙은 것(연도가 있는 날짜, 소수)은 위에서 읽었거나 날짜가 아니다
-  take(/(?<![\d./-])(\d{1,2})\s*[/.]\s*(\d{1,2})(?![\d./-])/g, m => [null, Number(m[1]), Number(m[2])])
+  take(/(?<![\d./-])(\d{1,2})\s*\/\s*(\d{1,2})(?![\d./-])/g, m => [null, Number(m[1]), Number(m[2])])
+  // 점 형식은 "3.5학점" 같은 소수와 헷갈리지 않게 뒤가 끝·공백·괄호·물결일 때만
+  take(/(?<![\d./-])(\d{1,2})\s*\.\s*(\d{1,2})\.?(?=$|[\s(~〜–,])/g, m => [null, Number(m[1]), Number(m[2])])
   return out.sort((a, b) => a.end - b.end)
 }
 
