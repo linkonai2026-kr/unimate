@@ -6,6 +6,7 @@ import { BottomCTA, btn, field } from '@/components/ui'
 import { requireUser } from '@/lib/auth/session'
 import { LANGS, t } from '@/lib/i18n'
 import { NATIONS, nationName } from '@/lib/nations'
+import { isDemoAccount } from '@/lib/profile'
 
 const label = 'block space-y-2 text-[14px] font-semibold text-muted'
 
@@ -13,6 +14,7 @@ export default async function EditProfilePage() {
   const me = await requireUser()
   const lang = me.lang
   const avatar = me.avatar ?? 0
+  const locked = isDemoAccount(me)
   return (
     <form action={updateMe} className="space-y-3 pb-40 pt-1">
       <fieldset className="rise card mx-3 p-5">
@@ -35,11 +37,12 @@ export default async function EditProfilePage() {
           <label className={label}>{t(lang, 'majorLabel')}<input name="major" defaultValue={me.major ?? ''} maxLength={30} className={field} /></label>
           <label className={label}>{t(lang, 'yearLabel')}<input name="year" defaultValue={me.year ?? ''} maxLength={10} placeholder="24" className={field} /></label>
         </div>
+        {/* 데모 계정은 국적·사용 언어가 고정이라 잠가 둔다(서버도 바꾸지 않는다) */}
         <label className={label}>{t(lang, 'nationality')}
-          <select name="nationality" defaultValue={me.nationality} className={field}>{NATIONS.map(n => <option key={n} value={n}>{nationName(n, lang)}</option>)}</select>
+          <select name="nationality" defaultValue={me.nationality} disabled={locked} className={`${field} disabled:opacity-60`}>{NATIONS.map(n => <option key={n} value={n}>{nationName(n, lang)}</option>)}</select>
         </label>
         <label className={label}>{t(lang, 'language')}
-          <select name="lang" defaultValue={lang} className={field}>{LANGS.map(l => <option key={l.code} value={l.code} lang={l.code}>{l.label}</option>)}</select>
+          <select name="lang" defaultValue={lang} disabled={locked} className={`${field} disabled:opacity-60`}>{LANGS.map(l => <option key={l.code} value={l.code} lang={l.code}>{l.label}</option>)}</select>
         </label>
       </div>
       <BottomCTA><button className={btn.primary}>{t(lang, 'save')}</button></BottomCTA>

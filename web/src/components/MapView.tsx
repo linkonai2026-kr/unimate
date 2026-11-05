@@ -78,7 +78,7 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
     }
     if (me) {
       mod.circle(pt(me), { radius: accuracyRadius(accuracy), color: '#3b82f6', weight: 0, fillOpacity: 0.18, interactive: false }).addTo(g)
-      const c = mod.marker(pt(me), { icon: mod.divIcon({ html: ME_HTML, className: '', iconSize: [64, 64], iconAnchor: [32, 32] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(g)
+      const c = mod.marker(pt(me), { icon: mod.divIcon({ html: ME_HTML, className: '', iconSize: [72, 72], iconAnchor: [36, 36] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(g)
       cone.current = c.getElement()?.querySelector<HTMLElement>('[data-cone]') ?? null
       aimCone(cone.current, aim.current)
     }

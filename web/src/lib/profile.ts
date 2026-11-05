@@ -22,6 +22,9 @@ const cut = (s: string, max: number) => (s.length <= max ? s : [...s].slice(0, m
  * 폼 값에서 허용된 칸만 남긴다. 잘못된 값은 버리고(기존 값 유지),
  * 학과·학번은 칸이 비어서 오면 지운다('').
  */
+/** 시드 데모 계정(id가 u-로 시작). 발표·체험용이라 국적·사용 언어를 바꿀 수 없다 */
+export const isDemoAccount = (p: { id: string }) => p.id.startsWith('u-')
+
 export function cleanProfilePatch(raw: Record<string, unknown>): Patch {
   const out: Patch = {}
   const nick = cleanText(raw.nickname)

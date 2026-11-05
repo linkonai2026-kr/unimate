@@ -1,13 +1,16 @@
 'use client'
 // 지도 탭(네이버 도보 길찾기식): 건물 고르기 → 경로 미리보기(소요 시간·단계 목록) → 안내 모드(다음 행동 배너, 지도 따라가기) → 도착
-import { Armchair, ArrowBendUpLeft, ArrowBendUpRight, ArrowUUpLeft, ArrowUp, Barbell, Bed, Briefcase, Bridge, Circle, Coffee, Confetti, FirstAid, FlagCheckered, ForkKnife, GpsFix, HandHeart, Info, PersonSimpleWalk, Phone, Play, Stairs, Storefront, TrafficSignal, TrendDown, TrendUp, X } from '@phosphor-icons/react'
+import { Armchair, ArrowBendUpLeft, ArrowBendUpRight, ArrowUUpLeft, ArrowUp, Barbell, Bed, Briefcase, Bridge, Circle, Coffee, Compass, Confetti, FirstAid, FlagCheckered, ForkKnife, GpsFix, HandHeart, Info, PersonSimpleWalk, Phone, Play, Stairs, Storefront, TrafficSignal, TrendDown, TrendUp, X } from '@phosphor-icons/react'
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { t, type Lang, type UiKey } from '@/lib/i18n'
 import type { LatLng } from '@/lib/map/buildings'
 import type { FacilityKind, FacilityView } from '@/lib/map/facilities'
+import { createGpsFilter, onRoute } from '@/lib/map/gps'
+import { bearing, turnBy } from '@/lib/map/heading'
 import { isLatLng, navState, offRoute, pickStart, simulateWalk, straightRoute, type Route, type Step } from '@/lib/map/route'
 import type { Pin } from './MapView'
+import { useHeading } from './useHeading'
 
 // 지도 라이브러리는 window가 있어야 해서 브라우저에서만 불러온다
 const skeleton = () => <div className="h-full w-full animate-pulse bg-bg-soft" />
@@ -37,6 +40,8 @@ function turnInfo(turn: number): { key: UiKey; Icon: IconT } {
 const stepText = (s: Step, lang: Lang) => s.text || t(lang, turnInfo(s.turn).key)
 const mins = (sec: number) => Math.max(1, Math.round(sec / 60))
 const noop = () => {}
+/** 손가락으로 쓰는 기기(휴대폰·태블릿)만 방향 센서를 켠다. 노트북에서 "방향을 알 수 없어요"가 뜨지 않게 */
+const touchDevice = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
 
 /** 서버가 돌려준 경로 모양 확인(오류 응답·깨진 응답으로 화면이 죽지 않게) */
 function isRoute(v: unknown): v is Route {
@@ -87,9 +92,22 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   const lastReroute = useRef(0)
   /** 위치 감시로 마지막에 받은 내 위치와 받은 시각 */
   const lastFix = useRef<{ pos: LatLng; at: number } | null>(null)
+  /** GPS 값 다듬기(튀는 값 거르기·흔들림 줄이기). 두 위치 감시가 같이 쓴다 */
+  const gpsFilter = useRef(createGpsFilter())
+  const takeFix = useCallback((p: GeolocationPosition) => {
+    const f = gpsFilter.current.push({ pos: { lat: p.coords.latitude, lng: p.coords.longitude }, acc: p.coords.accuracy, at: p.timestamp || Date.now() })
+    lastFix.current = { pos: f.pos, at: Date.now() }
+    return f
+  }, [])
   const dest = pins.find(p => p.id === selected)
   const destLabel = dest ? `${dest.label}${room?.roomNo && dest.id === target ? ` ${room.roomNo}` : ''}` : ''
   const state = route && me ? navState(route, me) : null
+  // 휴대폰 방향: 아이폰은 버튼을 눌러야 켜져서, 길찾기·안내 시작·내 위치 버튼을 누를 때 같이 켠다
+  const hd = useHeading()
+  const [canHeading, setCanHeading] = useState(false)
+  useEffect(() => { const timer = setTimeout(() => setCanHeading(touchDevice()), 0); return () => clearTimeout(timer) }, [])
+  const startHeading = hd.start
+  const wantHeading = useCallback(() => { if (touchDevice()) void startHeading() }, [startHeading])
 
   /** 진행 중인 경로 요청·데모 걷기를 모두 멈춘다 */
   const cancel = useCallback(() => {
@@ -123,6 +141,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
 
   function startNav() {
     if (!route) return
+    wantHeading()
     stop.current()
     stop.current = noop
     setMode('nav')
@@ -146,12 +165,11 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   useEffect(() => {
     if (!live || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(p => {
-      const pos = { lat: p.coords.latitude, lng: p.coords.longitude }
-      lastFix.current = { pos, at: Date.now() }
-      setMe(pos); setGps({ pos, acc: p.coords.accuracy })
-    }, noop, { enableHighAccuracy: true, maximumAge: 1000 })
+      const f = takeFix(p)
+      setMe(f.pos); setGps(f)
+    }, noop, { enableHighAccuracy: true, maximumAge: 0 })
     return () => navigator.geolocation.clearWatch(id)
-  }, [live])
+  }, [live, takeFix])
 
   // 둘러보기에서도 내 위치를 실시간으로: 이미 허용돼 있으면 바로, 아니면 "내 위치" 버튼을 눌렀을 때 켠다
   useEffect(() => {
@@ -168,19 +186,18 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
     if (!watchOn || live || !navigator.geolocation) return
     const id = navigator.geolocation.watchPosition(
       p => {
-        const pos = { lat: p.coords.latitude, lng: p.coords.longitude }
-        lastFix.current = { pos, at: Date.now() }
-        setLocError(null); setGps({ pos, acc: p.coords.accuracy })
+        setLocError(null); setGps(takeFix(p))
       },
       e => { if (e.code === e.PERMISSION_DENIED) { setLocError(window.isSecureContext ? 'denied' : 'https'); setWatchOn(false) } },
-      { enableHighAccuracy: true, maximumAge: 1000 },
+      { enableHighAccuracy: true, maximumAge: 0 },
     )
     return () => navigator.geolocation.clearWatch(id)
-  }, [watchOn, live])
+  }, [watchOn, live, takeFix])
   function locate() {
     if (!window.isSecureContext || !navigator.geolocation) { setLocError(window.isSecureContext ? 'denied' : 'https'); return }
     setWatchOn(true)
     setRecenter(n => n + 1)
+    wantHeading()
   }
 
   // 경로를 40m 넘게 벗어나면 지금 위치에서 다시 찾는다(8초에 한 번까지).
@@ -228,6 +245,9 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
   }, [mode, state?.arrived])
 
   const next = route && state ? route.steps[state.next] : null
+
+  // 안내 중 다음 지점이 내가 바라보는 쪽에서 몇 도 돌아가 있는지(화살표)
+  const aim = hd.heading != null && next && me ? turnBy(hd.heading, bearing(me, next.pos)) : null
   const fromLabel = start && start.reason !== 'denied' ? t(lang, 'myLocation') : t(lang, 'mainGate')
   const destFacilities = dest ? facilities[dest.id] ?? [] : []
 
@@ -235,8 +255,9 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
     <div className="relative h-[calc(100dvh-56px-64px)] overflow-hidden">
       {(() => {
         const view = {
-          center, pins, selected, route: route?.coords, follow: mode === 'nav', recenter,
-          me: mode === 'browse' ? gps?.pos ?? null : me, accuracy: demo ? undefined : gps?.acc,
+          center, pins, selected, route: route?.coords, follow: mode === 'nav', recenter, heading: hd.heading,
+          // 안내 중(실제 GPS)에는 경로 가까이면 점을 경로 위에 붙여서 흔들림 없이 보여 준다
+          me: mode === 'browse' ? gps?.pos ?? null : me && live && mode === 'nav' ? onRoute(route, me) : me, accuracy: demo ? undefined : gps?.acc,
           startLabel: fromLabel, endLabel: destLabel || t(lang, 'turn_arrive'),
           onPick: (id: string) => {
             if (mode !== 'browse' && mode !== 'preview') return
@@ -254,8 +275,14 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
       {mode === 'browse' && (
         <div className="absolute right-3 top-3 z-[500] flex items-center gap-2">
           {gps && <p role="status" aria-label={t(lang, 'myLocation')} className="rounded-full bg-bg/95 px-3 py-1.5 text-[13px] font-semibold text-ink shadow-[0_4px_12px_-4px_rgba(1,29,72,.3)]"><span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-[#3b82f6]" aria-hidden />{t(lang, 'myLocation')} ±{Math.round(gps.acc)}m</p>}
+          {canHeading && hd.status !== 'on' && (
+            <button type="button" onClick={() => void hd.start()} aria-label={t(lang, 'headingOn')} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg text-[#3b82f6] shadow-[0_4px_12px_-4px_rgba(1,29,72,.35)]"><Compass size={22} weight="bold" aria-hidden /></button>
+          )}
           <button type="button" onClick={locate} aria-label={t(lang, 'myLocation')} className="press flex h-11 w-11 items-center justify-center rounded-full bg-bg text-[#3b82f6] shadow-[0_4px_12px_-4px_rgba(1,29,72,.35)]"><GpsFix size={22} weight="bold" aria-hidden /></button>
         </div>
+      )}
+      {mode === 'browse' && canHeading && (hd.status === 'unsupported' || hd.status === 'denied') && !locError && (
+        <p role="status" className="absolute left-3 right-3 top-16 z-[500] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, 'headingNoSensor')}</p>
       )}
       {mode === 'browse' && locError && (
         <p role="alert" className="absolute left-3 right-3 top-16 z-[500] rounded-2xl bg-ink/90 px-4 py-3 text-[14px] font-medium text-white">{t(lang, locError === 'https' ? 'locationNeedsHttps' : 'locationDenied')}</p>
@@ -277,6 +304,12 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
               <p className="text-[28px] font-bold leading-tight tracking-tight">{t(lang, 'inMeters', { m: state.toNext })}</p>
               <p className="truncate text-[15px] text-white/80">{rerouting ? t(lang, 'rerouting') : stepText(next, lang)}</p>
             </div>
+            {/* 휴대폰 방향을 알면: 다음 지점이 내 앞에서 어느 쪽인지 */}
+            {aim != null && (
+              <span role="img" aria-label={t(lang, 'goThisWay')} className="ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-mint text-navy">
+                <ArrowUp size={26} weight="bold" style={{ transform: `rotate(${aim}deg)`, transition: 'transform .15s linear' }} />
+              </span>
+            )}
           </div>
         )
       })()}
@@ -307,7 +340,7 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
               <p className="mt-1 text-[12px] text-[#8b93a1]">{t(lang, 'guidebookSource')}</p>
             </div>
           )}
-          <button type="button" onClick={() => void plan(dest)} disabled={planning} aria-busy={planning}
+          <button type="button" onClick={() => { wantHeading(); void plan(dest) }} disabled={planning} aria-busy={planning}
             className="press mt-4 flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white disabled:opacity-60">
             <PersonSimpleWalk size={22} weight="bold" aria-hidden />{t(lang, 'route')}
           </button>

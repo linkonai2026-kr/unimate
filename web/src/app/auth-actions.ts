@@ -10,7 +10,7 @@ import { safeNext } from '@/lib/auth/token'
 import { isLang, t, type Lang, type UiKey } from '@/lib/i18n'
 import { MAX_IMAGE_BYTES, sniffImage } from '@/lib/images'
 import { NATIONS } from '@/lib/nations'
-import { checkPasswordChange, cleanProfilePatch, cleanText, NICKNAME_MAX } from '@/lib/profile'
+import { checkPasswordChange, cleanProfilePatch, cleanText, isDemoAccount, NICKNAME_MAX } from '@/lib/profile'
 import { createLimiter } from '@/lib/rate-limit'
 import { getStore } from '@/lib/store'
 
@@ -124,6 +124,8 @@ export async function updateMe(f: FormData) {
   const me = await requireUser()
   const store = getStore()
   const patch: Parameters<typeof store.updateProfile>[1] = cleanProfilePatch(Object.fromEntries(f))
+  // 데모 계정은 국적·사용 언어가 고정이다(폼을 고쳐 보내도 무시)
+  if (isDemoAccount(me)) { delete patch.lang; delete patch.nationality }
   // 프로필 사진: 앞 바이트로 형식을 확인한 것만 받는다. 지우기를 누르면 기본 그림으로
   const file = f.get('photo')
   if (f.get('removePhoto') === 'on') patch.photo = null

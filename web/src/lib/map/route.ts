@@ -155,10 +155,10 @@ function cumulative(coords: LatLng[]): number[] {
 }
 
 /** 점을 경로에 투영했을 때 경로까지의 거리(d, m)와 출발점부터의 거리(along, m). 좌표가 하나뿐이면 그 점까지의 거리 */
-function project(coords: LatLng[], acc: number[], p: LatLng): { d: number; along: number } {
-  if (coords.length === 0) return { d: Infinity, along: 0 }
-  if (coords.length === 1) return { d: distance(p, coords[0]), along: 0 }
-  let best = { d: Infinity, along: 0 }
+function project(coords: LatLng[], acc: number[], p: LatLng): { d: number; along: number; pos: LatLng } {
+  if (coords.length === 0) return { d: Infinity, along: 0, pos: p }
+  if (coords.length === 1) return { d: distance(p, coords[0]), along: 0, pos: coords[0] }
+  let best = { d: Infinity, along: 0, pos: p }
   const kx = Math.cos((p.lat * Math.PI) / 180)
   for (let i = 0; i < coords.length - 1; i++) {
     const a = coords[i], b = coords[i + 1]
@@ -167,9 +167,16 @@ function project(coords: LatLng[], acc: number[], p: LatLng): { d: number; along
     const u = len2 ? Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / len2)) : 0
     const q = { lat: a.lat + (b.lat - a.lat) * u, lng: a.lng + (b.lng - a.lng) * u }
     const d = distance(p, q)
-    if (d < best.d) best = { d, along: acc[i] + distance(a, q) }
+    if (d < best.d) best = { d, along: acc[i] + distance(a, q), pos: q }
   }
   return best
+}
+
+/** 경로 위에서 p와 가장 가까운 점과 그 거리(m). 경로가 비면 null */
+export function snapPoint(coords: LatLng[], p: LatLng): { pos: LatLng; d: number } | null {
+  if (coords.length === 0) return null
+  const r = project(coords, cumulative(coords), p)
+  return { pos: r.pos, d: r.d }
 }
 
 /** 경로에서 40m 넘게 벗어났는지(경로 다시 찾기 판단) */

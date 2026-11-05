@@ -15,7 +15,9 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
   // 메모리 모드는 항상, 실서비스는 DEMO_LOGIN=1일 때만 데모 계정 버튼을 보인다(발표·e2e용)
   const showDemo = !has.db || process.env.DEMO_LOGIN === '1'
   const demo = showDemo ? [
+    // 한국어·중국어·베트남어 체험용(국적·언어는 바꿀 수 없다)
     { handle: 'minjun', password: DEMO_PASSWORD, label: '민준', nation: 'kr' },
+    { handle: 'wei', password: DEMO_PASSWORD, label: '王伟', nation: 'cn' },
     { handle: 'linh', password: DEMO_PASSWORD, label: 'Linh', nation: 'vn' },
   ] : []
   return (

@@ -36,7 +36,7 @@ export function LoginForm({ lang, demo, next }: { lang: Lang; demo: { handle: st
       {demo.length > 0 && (
         <div className="rounded-[20px] bg-mint-soft p-4">
           <p className="mb-3 text-[14px] font-semibold text-mint-text">{t(lang, 'demoLogin')}</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {demo.map(d => (
               <form key={d.handle} action={action}>
                 <input type="hidden" name="uiLang" value={lang} />

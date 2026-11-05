@@ -1,7 +1,7 @@
 // 프로필 수정 입력 정리와 비밀번호 변경 규칙 테스트
 import { describe, it, expect } from 'vitest'
 import { hashPassword, verifyPassword } from '@/lib/auth/password'
-import { cleanProfilePatch, checkPasswordChange } from '@/lib/profile'
+import { cleanProfilePatch, checkPasswordChange, isDemoAccount } from '@/lib/profile'
 import { nationName } from '@/lib/nations'
 import { createMemoryStore } from '@/lib/store/memory'
 
@@ -62,5 +62,12 @@ describe('store profile patch', () => {
     expect(got.avatar).toBe(2)
     expect(got.major).toBe('컴퓨터공학과')
     expect(verifyPassword('y1234567', got.passHash)).toBe(true)
+  })
+})
+
+describe('isDemoAccount', () => {
+  it('시드 데모 계정(u-)만 데모로 본다', () => {
+    expect(isDemoAccount({ id: 'u-wei' })).toBe(true)
+    expect(isDemoAccount({ id: 'a1b2c3' })).toBe(false)
   })
 })

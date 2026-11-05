@@ -21,12 +21,13 @@ export default function VisitShell({ lang, active, query = {}, children }: { lan
   return (
     <div lang={lang} className="mx-auto min-h-dvh max-w-[480px] bg-bg-soft pb-24">
       {/* 높이 56px: 지도 화면이 상단 56px·하단 64px를 빼고 높이를 잡는다 */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-bg/95 px-3 backdrop-blur">
-        <Link href={visitHref('/visit', lang)} className="press" aria-label="Unimate"><Image src="/brand/logo.png" alt="Unimate" width={96} height={23} priority /></Link>
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 bg-bg/95 px-3 backdrop-blur min-[400px]:gap-2">
+        {/* 좁은 화면(360px 안팎)에서도 한 줄에 들어가도록 로고를 줄이고 눌려 찌그러지지 않게 한다 */}
+        <Link href={visitHref('/visit', lang)} className="press shrink-0" aria-label="Unimate"><Image src="/brand/logo.png" alt="Unimate" width={96} height={23} priority className="h-auto w-20 min-[400px]:w-24" /></Link>
         <span className="shrink-0 whitespace-nowrap rounded-md bg-teal/10 px-1.5 py-0.5 text-[11px] font-bold text-teal">{t(lang, 'visitor')}</span>
         {/* 언어를 바꾸면 화면이 같은 틀로 다시 그려지므로, key로 메뉴를 새로 만들어 닫힌 채로 시작한다 */}
         <details key={lang} className="relative ml-auto">
-          <summary aria-label={t(lang, 'language')} className="press flex h-10 cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-full px-2 text-[14px] font-semibold"><Translate size={20} aria-hidden />{LANGS.find(l => l.code === lang)?.label}</summary>
+          <summary aria-label={t(lang, 'language')} className="press flex h-10 cursor-pointer list-none items-center gap-1 whitespace-nowrap rounded-full px-2 text-[14px] font-semibold"><Translate size={20} className="hidden min-[400px]:block" aria-hidden />{LANGS.find(l => l.code === lang)?.label}</summary>
           <nav aria-label={t(lang, 'language')} className="absolute right-0 top-11 z-40 w-40 overflow-hidden rounded-2xl bg-bg shadow-[0_8px_24px_-8px_rgba(1,29,72,.35)]">
             {LANGS.map(l => (
               <Link key={l.code} href={visitHref(here, l.code, query)} lang={l.code} hrefLang={l.code} aria-current={l.code === lang ? 'true' : undefined}

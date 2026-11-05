@@ -98,3 +98,14 @@ test('가입 화면: 국적을 바꾸면 언어가 따라가고, 언어를 직�
   await expect(nation).toHaveValue('VN')
   await expect(lang).toHaveValue('vi')
 })
+
+test('데모 계정은 한국어·중국어·베트남어 세 개이고, 국적·언어는 바꿀 수 없다', async ({ page }) => {
+  await page.goto('/login')
+  for (const name of ['민준', '王伟', 'Linh']) await expect(page.getByRole('button', { name })).toBeVisible()
+  await page.getByRole('button', { name: '王伟' }).click()
+  await page.waitForURL('/')
+  await page.goto('/me/edit')
+  await expect(page.locator('select[name="nationality"]')).toBeDisabled()
+  await expect(page.locator('select[name="lang"]')).toBeDisabled()
+  await expect(page.locator('select[name="lang"]')).toHaveValue('zh')
+})
