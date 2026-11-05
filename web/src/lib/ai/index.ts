@@ -4,8 +4,8 @@ import type { Lang } from '../i18n'
 import { recordServer, timed } from '../metrics'
 import type { ModerationInput, Verdict } from '../moderation'
 import type { TrMap } from '../types'
-import { claudeList, claudeModerate, claudeSummary, claudeTimetable, claudeTranslate } from './claude'
-import { SAMPLE_TIMETABLE, demoTranslate, fakeModerate, fakeSummary, fakeTranslate } from './fake'
+import { claudeList, claudeMail, claudeModerate, claudeSummary, claudeTimetable, claudeTranslate } from './claude'
+import { SAMPLE_TIMETABLE, demoTranslate, fakeMail, fakeModerate, fakeSummary, fakeTranslate } from './fake'
 
 export interface ParsedCourse { name: string; place: string; day: number; start: string; end: string }
 /**
@@ -14,9 +14,16 @@ export interface ParsedCourse { name: string; place: string; day: number; start:
  */
 export interface Apply { how: 'online' | 'visit' | 'email' | 'other'; where: string | null; url: string | null; documents: string[] }
 export interface Summary { bullets: string[]; deadline: string | null; apply?: Apply | null }
+/** 신청 메일 초안 재료: 공지(제목·본문·마감·신청 방법)와 학생이 확인한 이름·학과·학번 */
+export interface MailInput {
+  notice: { title: string; body: string; deadline: string | null; apply: Apply | null }
+  student: { name: string; major: string; studentId: string }
+}
+/** 담당 부서에 보낼 한국어 메일과, 학생이 읽을 자기 언어 번역 */
+export interface MailDraft { subject: string; body: string; subjectTr: string; bodyTr: string }
 type ImageInput = { data: string; mediaType: 'image/png' | 'image/jpeg' | 'image/webp' }
 
-const TRANSLATE_MS = 25_000, SUMMARY_MS = 20_000, LIST_MS = 20_000, TIMETABLE_MS = 12_000, MODERATE_MS = 15_000
+const TRANSLATE_MS = 25_000, SUMMARY_MS = 20_000, LIST_MS = 20_000, TIMETABLE_MS = 12_000, MODERATE_MS = 15_000, MAIL_MS = 25_000
 
 /** 시간이 지나면 요청 자체를 끊는다(응답만 버리고 호출은 계속 도는 일이 없게) */
 async function abortAfter<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -30,7 +37,7 @@ async function abortAfter<T>(ms: number, run: (signal: AbortSignal) => Promise<T
 }
 
 /** 실패·시간 초과면 대역 값 */
-async function orFallback<T>(label: 'summary' | 'list' | 'timetable', ms: number, run: (signal: AbortSignal) => Promise<T>, fallback: () => T): Promise<T> {
+async function orFallback<T>(label: 'summary' | 'list' | 'timetable' | 'mail', ms: number, run: (signal: AbortSignal) => Promise<T>, fallback: () => T): Promise<T> {
   const t0 = Date.now()
   try {
     const v = await abortAfter(ms, run)
@@ -115,6 +122,12 @@ export async function summarizeNotice(title: string, body: string, lang: Lang): 
 export async function translateList(items: string[], lang: Lang): Promise<string[]> {
   if (!has.ai || lang === 'ko' || items.length === 0) return items
   return orFallback('list', LIST_MS, signal => claudeList(items, lang, signal), () => items)
+}
+
+/** 신청 메일 초안. 키가 없거나 실패하면 정해진 틀로 쓴 초안(학생 언어 번역 포함) */
+export async function draftApplyMail(input: MailInput, lang: Lang): Promise<MailDraft> {
+  if (!has.ai) return fakeMail(input, lang)
+  return orFallback('mail', MAIL_MS, signal => claudeMail(input, lang, signal), () => fakeMail(input, lang))
 }
 
 export async function parseTimetable(image: ImageInput): Promise<ParsedCourse[]> {

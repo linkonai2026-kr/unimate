@@ -6,7 +6,7 @@ import { LANGS, type Lang } from '../i18n'
 import { BUILDINGS } from '../map/buildings'
 import { RULE_IDS, RULES, type ModerationInput, type Verdict } from '../moderation'
 import type { TrMap } from '../types'
-import type { Apply, ParsedCourse, Summary } from './index'
+import type { Apply, MailDraft, MailInput, ParsedCourse, Summary } from './index'
 
 /** 대량·실시간 번역이라 일부러 싸고 빠른 모델을 쓴다 */
 const MODEL = 'claude-haiku-5-5'
@@ -254,4 +254,37 @@ ${JSON.stringify(content)}`, 'low', 600, signal)
   // 위반이 아니면 규칙은 none, 위반인데 규칙이 none이면 위반으로 보지 않는다(애매하면 제재하지 않는 쪽)
   const violation = out.violation && out.rule !== 'none'
   return { violation, rule: violation ? out.rule : 'none', severity: out.severity, reason: out.reason.trim().slice(0, 300) }
+}
+
+/** 신청 메일 초안: 담당 부서에 보내는 정중한 한국어 메일 + 학생이 읽을 번역. 공지에 없는 사실은 지어내지 않는다 */
+export const MAIL_SYSTEM = `You write an email that an international student at a Korean university sends to the university office in charge of a notice.
+
+Write the email itself in polite, formal Korean (합쇼체), the way a Korean student writes to a staff member:
+- Greeting and self-introduction first: "안녕하세요. {학과} {학번} {이름}입니다." using only the student details given. Leave out any detail that is empty.
+- Then one or two short paragraphs: which notice it is about (use the notice title), and what the student wants. If the notice says to apply or submit by email, the email is the application: say the student is applying and that the listed documents are attached. Otherwise the email asks to apply or asks how to complete the application, and asks the office to confirm.
+- Mention the student's deadline and the documents only if the notice gives them. Never invent dates, documents, phone numbers, names of staff, links or facts that are not in the notice.
+- End with "감사합니다." and the student's name followed by " 드림".
+- Plain text, no markdown, under 900 characters. Subject: short, starting with "[문의]" or "[신청]" followed by the notice topic and the student's name.
+
+Then translate the subject and the body faithfully into the language the request asks for, so the student understands exactly what they are sending (if that language is Korean, repeat the Korean).`
+
+export async function claudeMail(input: MailInput, lang: Lang, signal?: AbortSignal): Promise<MailDraft> {
+  const schema = z.object({ subject: z.string(), body: z.string(), subjectTr: z.string(), bodyTr: z.string() })
+  const { notice: n, student: s } = input
+  const a = n.apply
+  const out = await ask(schema, MAIL_SYSTEM, `Translate into ${langName(lang)}.
+
+Student: 이름 ${s.name || '(없음)'} / 학과 ${s.major || '(없음)'} / 학번 ${s.studentId || '(없음)'}
+
+Notice title: ${n.title}
+Student deadline: ${n.deadline ?? '(none)'}
+How to apply: ${a?.how ?? '(unknown)'}${a?.where ? ` / submit to: ${a.where}` : ''}
+Documents: ${a?.documents.length ? a.documents.join(', ') : '(none listed)'}
+
+Notice body:
+${n.body.slice(0, 5000)}`, 'medium', 3000, signal)
+  const tidy = (v: string, max: number) => v.trim().slice(0, max)
+  const draft = { subject: tidy(out.subject, 120), body: tidy(out.body, 1500), subjectTr: tidy(out.subjectTr, 200), bodyTr: tidy(out.bodyTr, 2500) }
+  if (!draft.subject || !draft.body) throw new Error('claude: empty mail')
+  return draft
 }

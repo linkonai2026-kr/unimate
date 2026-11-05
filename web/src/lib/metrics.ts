@@ -186,7 +186,7 @@ export function saveLater(rows: EventRow[]): void {
 
 /* ───────────── 서버 작업 기록 ───────────── */
 
-export type ServerOp = 'notices' | 'notice_detail' | 'ai_summary' | 'ai_list' | 'ai_translate' | 'ai_timetable' | 'menu' | 'route'
+export type ServerOp = 'notices' | 'notice_detail' | 'ai_summary' | 'ai_list' | 'ai_translate' | 'ai_timetable' | 'ai_mail' | 'menu' | 'route'
 export const OP_LABEL: Record<ServerOp, string> = {
   notices: '공지 목록(화면 준비 전체)',
   notice_detail: '공지 상세 받기',
@@ -194,6 +194,7 @@ export const OP_LABEL: Record<ServerOp, string> = {
   ai_list: 'AI 목록 번역(제목·식단·길 안내)',
   ai_translate: 'AI 글 번역',
   ai_timetable: 'AI 시간표 인식',
+  ai_mail: 'AI 신청 메일 초안',
   menu: '식단',
   route: '길찾기 API',
 }
