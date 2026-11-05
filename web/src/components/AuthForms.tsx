@@ -1,9 +1,10 @@
 'use client'
 // 로그인·가입 폼(라벨은 입력칸 위, 안내·오류는 아래, 큰 버튼 하나). 실패해도 쓴 값(비밀번호 제외)은 남긴다
-import { useActionState, useId } from 'react'
+import { useActionState, useId, useState } from 'react'
 import { login, signup } from '@/app/auth-actions'
 import { btn, field } from '@/components/ui'
-import { LANGS, t, type Lang } from '@/lib/i18n'
+import { isLang, LANGS, t, type Lang } from '@/lib/i18n'
+import { langForNation } from '@/lib/nations'
 
 const label = 'block space-y-2 text-[14px] font-semibold text-muted'
 const hint = 'block text-[13px] font-normal text-[#8b93a1]'
@@ -60,6 +61,8 @@ export function SignupForm({ lang, nations, next }: { lang: Lang; nations: [stri
   const [state, action, pending] = useActionState(signup, undefined)
   const id = useId()
   const v = state?.values
+  // 언어 칸은 국적을 따라 바뀌므로 상태로 둔다(가입 실패 뒤에도 고른 값이 남는다)
+  const [userLang, setUserLang] = useState<Lang>(isLang(v?.lang) ? v.lang : lang)
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="uiLang" value={lang} />
@@ -79,12 +82,13 @@ export function SignupForm({ lang, nations, next }: { lang: Lang; nations: [stri
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className={label}>{t(lang, 'nationality')}
-          <select name="nationality" className={field} defaultValue={v?.nationality ?? DEFAULT_NATION[lang]}>
+          {/* 국적을 고르면 그 나라 언어를 미리 골라 준다(언어는 그 뒤에 따로 바꿀 수 있다) */}
+          <select name="nationality" className={field} defaultValue={v?.nationality ?? DEFAULT_NATION[lang]} onChange={e => setUserLang(langForNation(e.target.value))}>
             {nations.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </label>
         <label className={label}>{t(lang, 'language')}
-          <select name="lang" className={field} defaultValue={v?.lang ?? lang}>
+          <select name="lang" className={field} value={userLang} onChange={e => setUserLang(isLang(e.target.value) ? e.target.value : lang)}>
             {LANGS.map(l => <option key={l.code} value={l.code} lang={l.code}>{l.label}</option>)}
           </select>
         </label>

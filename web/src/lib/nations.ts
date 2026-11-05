@@ -1,8 +1,14 @@
 // 가입 화면의 국적 목록과 국기·국가 이름 표시(서버·브라우저가 같은 글자를 내도록 이름은 표로 둔다)
+import type { Lang } from './i18n'
+
 export const NATIONS = ['KR', 'VN', 'CN', 'UZ', 'MN', 'JP', 'US', 'XX'] as const
 export type Nation = (typeof NATIONS)[number]
 
 export const isNation = (v: unknown): v is Nation => typeof v === 'string' && (NATIONS as readonly string[]).includes(v)
+
+/** 가입할 때 국적을 고르면 미리 골라 줄 화면 언어. 화면 언어가 없는 나라(몽골·일본 등)는 영어. 사용자가 다시 바꿀 수 있다 */
+export const NATION_LANG: Record<Nation, Lang> = { KR: 'ko', VN: 'vi', CN: 'zh', UZ: 'uz', MN: 'en', JP: 'en', US: 'en', XX: 'en' }
+export const langForNation = (code: string): Lang => (isNation(code) ? NATION_LANG[code] : 'en')
 
 /** 두 글자 국가 코드를 국기 이모지로. 모르는 코드는 지구본 */
 export function flag(code: string): string {
