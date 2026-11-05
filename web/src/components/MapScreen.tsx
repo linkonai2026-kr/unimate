@@ -8,7 +8,9 @@ import type { LatLng } from '@/lib/map/buildings'
 import type { FacilityKind, FacilityView } from '@/lib/map/facilities'
 import { createGpsFilter, onRoute } from '@/lib/map/gps'
 import { bearing, turnBy } from '@/lib/map/heading'
+import { indoorPlan, nearbyPlan } from '@/lib/map/indoor'
 import { isLatLng, navState, offRoute, pickStart, simulateWalk, straightRoute, type Route, type Step } from '@/lib/map/route'
+import IndoorMap from './IndoorMap'
 import type { Pin } from './MapView'
 import { useHeading } from './useHeading'
 
@@ -246,6 +248,24 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
 
   const next = route && state ? route.steps[state.next] : null
 
+  // 실내 안내도: 안내도가 있는 건물에 10m 안으로 오면 띄운다(닫으면 25m 넘게 멀어질 때까지 다시 안 띄움).
+  // 도착 화면이나 건물 카드의 버튼으로 직접 열 수도 있다
+  const here = mode === 'browse' ? gps?.pos ?? null : me
+  const [closedIndoor, setClosedIndoor] = useState<string | null>(null)
+  const [openIndoor, setOpenIndoor] = useState<string | null>(null)
+  const near = nearbyPlan(here, { current: closedIndoor, prefer: selected })
+  useEffect(() => {
+    if (!closedIndoor || near?.buildingId === closedIndoor) return
+    const timer = setTimeout(() => setClosedIndoor(null), 0)
+    return () => clearTimeout(timer)
+  }, [closedIndoor, near?.buildingId])
+  useEffect(() => {
+    if (mode !== 'arrived' || !dest || !indoorPlan(dest.id)) return
+    const timer = setTimeout(() => setOpenIndoor(dest.id), 0)
+    return () => clearTimeout(timer)
+  }, [mode, dest])
+  const indoor = indoorPlan(openIndoor) ?? (near && near.buildingId !== closedIndoor ? near : null)
+  const closeIndoor = () => { if (indoor) setClosedIndoor(indoor.buildingId); setOpenIndoor(null) }
   // 안내 중 다음 지점이 내가 바라보는 쪽에서 몇 도 돌아가 있는지(화살표)
   const aim = hd.heading != null && next && me ? turnBy(hd.heading, bearing(me, next.pos)) : null
   const fromLabel = start && start.reason !== 'denied' ? t(lang, 'myLocation') : t(lang, 'mainGate')
@@ -344,6 +364,11 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
             className="press mt-4 flex h-14 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white disabled:opacity-60">
             <PersonSimpleWalk size={22} weight="bold" aria-hidden />{t(lang, 'route')}
           </button>
+          {indoorPlan(dest.id) && (
+            <button type="button" onClick={() => setOpenIndoor(dest.id)} className="press mt-2 flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-bg-soft text-[16px] font-bold">
+              <Stairs size={20} weight="bold" aria-hidden />{t(lang, 'indoorMap')}
+            </button>
+          )}
         </div>
       )}
 
@@ -392,8 +417,17 @@ export default function MapScreen({ lang, pins, center, target, room, autoStart,
           <span className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-mint-soft text-teal" aria-hidden><Confetti size={34} weight="fill" /></span>
           <p className="mt-3 text-[24px] font-bold tracking-tight">{t(lang, 'arrived')}</p>
           {room?.roomNo && room.floor != null && <p className="mt-1 text-[17px] font-semibold text-teal">{t(lang, 'floorRoom', { floor: room.floor, room: room.roomNo })}</p>}
-          <button type="button" onClick={endNav} className="press mt-6 flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-[17px] font-bold text-white">{t(lang, 'confirm')}</button>
+          {dest && indoorPlan(dest.id) && (
+            <button type="button" onClick={() => setOpenIndoor(dest.id)} className="press mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white"><Stairs size={20} weight="bold" aria-hidden />{t(lang, 'indoorMap')}</button>
+          )}
+          <button type="button" onClick={endNav} className={`press ${dest && indoorPlan(dest.id) ? 'mt-2' : 'mt-6'} flex h-14 w-full items-center justify-center rounded-2xl bg-navy text-[17px] font-bold text-white`}>{t(lang, 'confirm')}</button>
         </div>
+      )}
+
+      {indoor && (
+        <IndoorMap key={indoor.buildingId} lang={lang} plan={indoor} name={pins.find(p => p.id === indoor.buildingId)?.label ?? ''}
+          room={indoor.buildingId === target ? room : null}
+          heading={hd.heading} headingStatus={hd.status} canHeading={canHeading} onHeading={() => void hd.start()} onClose={closeIndoor} />
       )}
     </div>
   )
