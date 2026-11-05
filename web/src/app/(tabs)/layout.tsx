@@ -7,7 +7,8 @@ import { requireUser } from '@/lib/auth/session'
 export default async function TabsLayout({ children }: LayoutProps<'/'>) {
   const { lang } = await requireUser()
   return (
-    <div lang={lang} className="mx-auto min-h-dvh max-w-[480px] bg-bg-soft pb-24">
+    // 아래 여백: 하단 탭(64px)과 아이폰 홈 바(safe-area)만큼 비워 마지막 줄이 탭에 가려지지 않게
+    <div lang={lang} className="mx-auto min-h-dvh max-w-[480px] bg-bg-soft pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <TopBar lang={lang} />
       <main>{children}</main>
       <Tracker visitor={false} lang={lang} />

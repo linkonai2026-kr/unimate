@@ -61,7 +61,7 @@ export default function BottomNav({ lang }: { lang: Lang }) {
           const on = match.test(path)
           return (
             <li key={href} className="flex-1">
-              <Link href={href} aria-current={on ? 'page' : undefined} className={`press flex h-16 flex-col items-center justify-center gap-1 text-[11px] ${on ? 'font-bold text-navy' : 'font-medium text-[#a4abb8]'}`}>
+              <Link href={href} aria-current={on ? 'page' : undefined} className={`press flex h-16 flex-col items-center justify-center gap-1 px-1 text-center text-[11px] leading-tight ${on ? 'font-bold text-navy' : 'font-medium text-[#a4abb8]'}`}>
                 <Icon size={26} weight={on ? 'fill' : 'regular'} aria-hidden />
                 {t(lang, key)}
               </Link>

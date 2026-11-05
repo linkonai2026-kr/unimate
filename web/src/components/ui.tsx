@@ -5,13 +5,13 @@ import type { ReactNode } from 'react'
 import { t, type Lang } from '@/lib/i18n'
 import { kstTime, REPEAT_SUSPENSION_DAYS, WARNING_LIMIT, type SanctionStatus } from '@/lib/moderation'
 
-/** 큰 버튼 모양(폼 버튼·링크 공통). 한 화면에 primary는 하나만 */
+/** 큰 버튼 모양(폼 버튼·링크 공통). 한 화면에 primary는 하나만. 높이는 최소값이라 긴 번역(vi·uz)이 두 줄이 돼도 알약 밖으로 넘치지 않고, 작은 버튼도 손가락 기준 44px */
 export const btn = {
-  primary: 'press flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-navy text-[17px] font-bold text-white disabled:opacity-50',
-  mint: 'press flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-teal text-[17px] font-bold text-white disabled:opacity-50',
-  soft: 'press flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-bg-soft text-[15px] font-semibold text-ink disabled:opacity-50',
-  small: 'press inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-bg-soft px-3 text-[14px] font-semibold text-ink disabled:opacity-50',
-  smallPrimary: 'press inline-flex h-9 items-center justify-center gap-1 rounded-xl bg-navy px-3.5 text-[14px] font-bold text-white disabled:opacity-50',
+  primary: 'press flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-navy px-4 py-2 text-center text-[17px] font-bold leading-tight text-white disabled:opacity-50',
+  mint: 'press flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-teal px-4 py-2 text-center text-[17px] font-bold leading-tight text-white disabled:opacity-50',
+  soft: 'press flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-bg-soft px-4 py-2 text-center text-[15px] font-semibold leading-tight text-ink disabled:opacity-50',
+  small: 'press inline-flex min-h-11 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl bg-bg-soft px-3 text-[14px] font-semibold text-ink disabled:opacity-50',
+  smallPrimary: 'press inline-flex min-h-11 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl bg-navy px-3.5 text-[14px] font-bold text-white disabled:opacity-50',
 }
 
 /** 입력칸 모양 */
@@ -39,7 +39,7 @@ export function Section({ title, more, moreLabel, children, className = '' }: { 
         <div className="flex items-center justify-between gap-3 px-5 pb-1 pt-5">
           <h2 className="min-w-0 text-[19px] font-bold tracking-tight">{title}</h2>
           {more && (
-            <Link href={more} className="press flex shrink-0 items-center gap-0.5 text-[14px] font-medium text-muted">
+            <Link href={more} className="press -my-2 flex min-h-11 shrink-0 items-center gap-0.5 px-1 text-[14px] font-medium text-muted">
               {moreLabel}<CaretRight size={14} weight="bold" aria-hidden />
             </Link>
           )}
@@ -62,7 +62,7 @@ export function Row({ href, icon, title, sub, right, chevron = !!href, external 
         <span className="block truncate text-[16px] font-medium">{title}</span>
         {sub && <span className="mt-0.5 block truncate text-[13px] text-muted">{sub}</span>}
       </span>
-      {right && <span className="shrink-0 text-[14px] text-muted">{right}</span>}
+      {right && <span className="max-w-[45%] shrink-0 truncate text-[14px] text-muted">{right}</span>}
       {chevron && <CaretRight size={16} className="shrink-0 text-[#c4c9d2]" weight="bold" aria-hidden />}
     </>
   )
@@ -99,7 +99,7 @@ export function Sheet({ close, closeLabel = 'Close', children }: { close: string
   return (
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40">
       <Link href={close} scroll={false} aria-label={closeLabel} className="absolute inset-0" />
-      <div role="dialog" aria-modal="true" className="rise relative max-h-[90dvh] w-full max-w-[480px] overflow-y-auto rounded-t-[28px] bg-bg px-5 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-3">
+      <div role="dialog" aria-modal="true" className="rise relative max-h-[90dvh] w-full max-w-[480px] overflow-y-auto overscroll-contain rounded-t-[28px] bg-bg px-5 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-3">
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" aria-hidden />
         {children}
       </div>
@@ -109,7 +109,8 @@ export function Sheet({ close, closeLabel = 'Close', children }: { close: string
 
 /** 화면 맨 아래에 붙는 주요 버튼 자리(하단 탭 위) */
 export function BottomCTA({ children }: { children: ReactNode }) {
-  return <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-gradient-to-t from-bg via-bg to-bg/0 px-4 pb-3 pt-6">{children}</div>
+  // 위쪽 흐림 띠는 손가락을 가로채지 않게(그 아래 글·버튼이 눌리도록)
+  return <div className="pointer-events-none fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-10 mx-auto max-w-[480px] bg-gradient-to-t from-bg via-bg to-bg/0 px-4 pb-3 pt-6"><div className="pointer-events-auto">{children}</div></div>
 }
 
 /** 내 경고·이용 제한 상태 안내(홈·내 정보·글쓰기, 제한 중이면 댓글·쪽지 입력칸 자리). 상태가 없으면 아무것도 그리지 않는다 */
@@ -127,7 +128,7 @@ export function SanctionBanner({ lang, status, className = '' }: { lang: Lang; s
       <div className="min-w-0">
         <p className={`text-[15px] font-bold ${suspended ? 'text-danger' : 'text-[#8a6400]'}`}>{title}</p>
         <p className="mt-0.5 text-[14px] leading-relaxed text-ink/80">{desc}</p>
-        <Link href="/rules" className="press mt-1.5 inline-flex items-center gap-0.5 text-[13px] font-semibold text-muted">{t(lang, 'seeRules')}<CaretRight size={12} weight="bold" aria-hidden /></Link>
+        <Link href="/rules" className="press -mb-2 mt-0.5 inline-flex min-h-11 items-center gap-0.5 text-[13px] font-semibold text-muted">{t(lang, 'seeRules')}<CaretRight size={12} weight="bold" aria-hidden /></Link>
       </div>
     </div>
   )

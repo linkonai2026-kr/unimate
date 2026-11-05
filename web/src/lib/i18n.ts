@@ -16,7 +16,7 @@ const r = (ko: string, en: string, vi: string, zh: string, uz: string): Row => (
 
 export const UI = {
   'tab.board': r('게시판', 'Board', 'Diễn đàn', '论坛', 'Forum'),
-  'tab.timetable': r('시간표', 'Timetable', 'Thời khóa biểu', '课表', 'Dars jadvali'),
+  'tab.timetable': r('시간표', 'Timetable', 'Lịch học', '课表', 'Dars jadvali'),
   'tab.friends': r('친구', 'Friends', 'Bạn bè', '朋友', "Do'stlar"),
   'tab.map': r('지도', 'Map', 'Bản đồ', '地图', 'Xarita'),
   translatedFrom: r('{lang}에서 번역됨', 'Translated from {lang}', 'Dịch từ {lang}', '译自{lang}', '{lang} tilidan tarjima'),

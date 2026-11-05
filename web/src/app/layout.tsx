@@ -14,7 +14,8 @@ export const metadata: Metadata = {
 };
 
 // viewportFit: cover — 하단 탭·시트가 쓰는 env(safe-area-inset-bottom)이 아이폰에서 실제 값을 갖게
-export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
+// interactiveWidget: resizes-content — 안드로이드 크롬에서 키보드가 올라오면 화면이 줄어 fixed 입력창·탭이 키보드 위로 올라온다
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff", interactiveWidget: "resizes-content" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

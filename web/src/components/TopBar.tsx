@@ -23,8 +23,8 @@ export default function TopBar({ lang }: { lang: Lang }) {
   const back = () => (window.history.length > 1 ? router.back() : router.push('/'))
   const icons = (
     <>
-      <Link href="/search" aria-label={t(lang, 'search')} className="press flex h-10 w-10 items-center justify-center rounded-full"><MagnifyingGlass size={24} aria-hidden /></Link>
-      <Link href="/me" aria-label={t(lang, 'me')} className="press flex h-10 w-10 items-center justify-center rounded-full"><UserCircle size={26} aria-hidden /></Link>
+      <Link href="/search" aria-label={t(lang, 'search')} className="press flex h-11 w-11 items-center justify-center rounded-full"><MagnifyingGlass size={24} aria-hidden /></Link>
+      <Link href="/me" aria-label={t(lang, 'me')} className="press flex h-11 w-11 items-center justify-center rounded-full"><UserCircle size={26} aria-hidden /></Link>
     </>
   )
   // 홈: 왼쪽 큰 로고, 가운데 학교 이름, 오른쪽 아이콘(양옆 칸 너비를 같게 해서 학교 이름이 정확히 가운데)
@@ -39,7 +39,7 @@ export default function TopBar({ lang }: { lang: Lang }) {
   )
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-1 bg-bg/95 px-2 backdrop-blur">
-      {sub && <button type="button" onClick={back} aria-label={t(lang, 'back')} className="press flex h-10 w-10 items-center justify-center rounded-full"><CaretLeft size={24} weight="bold" aria-hidden /></button>}
+      {sub && <button type="button" onClick={back} aria-label={t(lang, 'back')} className="press flex h-11 w-11 items-center justify-center rounded-full"><CaretLeft size={24} weight="bold" aria-hidden /></button>}
       <h1 className={`flex-1 truncate font-bold tracking-tight ${sub ? 'text-[17px]' : 'px-2 text-[22px]'}`}>{title ? t(lang, title) : ''}</h1>
       {icons}
     </header>
