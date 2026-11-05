@@ -13,6 +13,8 @@ export const headingNeedsTap = () => typeof permissionApi()?.requestPermission =
 
 /** 첫 값이 이 시간 안에 안 오면 센서가 없다고 본다 */
 const FIRST_VALUE_MS = 3000
+/** 센서는 1초에 수십 번 오므로 화면은 이 간격으로만 다시 그린다 */
+const UPDATE_MS = 60
 
 export function useHeading() {
   const [status, setStatus] = useState<HeadingStatus>('off')
@@ -25,7 +27,7 @@ export function useHeading() {
     if (!active) return
     if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return
     let got = false
-    let frame = 0
+    let pending: ReturnType<typeof setTimeout> | null = null
     const absolute = 'ondeviceorientationabsolute' in window
     const type = absolute ? 'deviceorientationabsolute' : 'deviceorientation'
     const onEvent = (ev: Event) => {
@@ -36,13 +38,17 @@ export function useHeading() {
       if (!got) { got = true; setStatus('on') }
       const next = smooth(last.current, h)
       last.current = next
-      // 화면은 한 프레임에 한 번, 2도 넘게 바뀔 때만 다시 그린다
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => setHeading(prev => (prev == null || Math.abs(turnBy(prev, next)) >= 2 ? Math.round(next) : prev)))
+      // 화면은 60ms에 한 번, 2도 넘게 바뀔 때만 다시 그린다
+      if (pending) return
+      pending = setTimeout(() => {
+        pending = null
+        const h = last.current
+        if (h != null) setHeading(prev => (prev == null || Math.abs(turnBy(prev, h)) >= 2 ? Math.round(h) : prev))
+      }, UPDATE_MS)
     }
     window.addEventListener(type, onEvent)
     const timer = setTimeout(() => { if (!got) setStatus(s => (s === 'denied-wait' ? 'denied' : 'unsupported')) }, FIRST_VALUE_MS)
-    return () => { window.removeEventListener(type, onEvent); clearTimeout(timer); cancelAnimationFrame(frame) }
+    return () => { window.removeEventListener(type, onEvent); clearTimeout(timer); if (pending) clearTimeout(pending) }
   }, [active])
 
   /** 버튼 클릭 안에서 부른다(아이폰 권한 창은 사용자 동작 안에서만 뜬다) */
