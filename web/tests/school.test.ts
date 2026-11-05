@@ -182,7 +182,7 @@ describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)'
     expect(n).toBeGreaterThan(0)
     expect(n).toBeLessThanOrEqual(NOTICE_LIMIT)
     expect(ai.summarizeNotice).toHaveBeenCalledTimes(n * 5)
-    expect(ai.translateList).toHaveBeenCalledTimes(4) // 한국어 빼고 언어마다 제목 한 번
+    expect(ai.translateList).toHaveBeenCalledTimes(Math.ceil(n / 4) * 4) // 한국어 빼고 언어마다 제목을 4개씩 한 번
     const before = ai.summarizeNotice.mock.calls.length
     const r = await noticeCards('academic', 'vi', 3)
     expect(r.items[0]).toMatchObject({ titleTr: `vi:${r.items[0].title}`, bullets: [`vi:${r.items[0].title}`], deadline: '11/17 18:00' })
@@ -199,6 +199,33 @@ describe('공지 카드·식단 화면 데이터(service, 미리 만든 번역)'
     const next = await buildNotices('academic', undefined, Date.now() + 86_400_000)
     expect(ai.summarizeNotice).toHaveBeenCalledTimes(calls)
     expect(next.en.items[0].bullets[0]).toMatch(/^en:/)
+  })
+  it('제목은 4개씩 나눠 번역하고, 번역이 안 된 묶음은 한 번 더 시도한다', async () => {
+    vi.doMock('server-only', () => ({}))
+    let flaky = true
+    const translateList = vi.fn(async (items: string[], lang: string) => {
+      if (flaky && items[0] === 'T4') { flaky = false; return items } // 두 번째 묶음이 처음엔 실패(원문 그대로)
+      return items.map(x => `${lang}:${x}`)
+    })
+    vi.doMock('@/lib/ai', () => ({ summarizeNotice: vi.fn(), translateList }))
+    const { translateTitles } = await import('@/lib/school/prebuilt')
+    const titles = Array.from({ length: 8 }, (_, i) => `T${i}`)
+    const out = await translateTitles(titles, 'uz')
+    expect(out).toEqual(titles.map(x => `uz:${x}`))
+    expect(translateList.mock.calls.map(c => c[0].length)).toEqual([4, 4, 4]) // 4개씩 두 번 + 실패한 묶음 한 번 더
+  })
+  it('retitle이면 저장된 제목을 모두 다시 번역하되 요약은 다시 만들지 않는다', async () => {
+    vi.doMock('server-only', () => ({}))
+    schoolSite()
+    const ai = fakeAi()
+    const { buildNotices } = await import('@/lib/school/prebuilt')
+    await buildNotices('academic')
+    const summaries = ai.summarizeNotice.mock.calls.length
+    ai.translateList.mockImplementation(async (items: string[], lang: string) => items.map(x => `v2-${lang}:${x}`))
+    const snaps = await buildNotices('academic', undefined, Date.now(), { retitle: true })
+    expect(snaps.uz.items[0].titleTr).toBe(`v2-uz:${snaps.uz.items[0].title}`)
+    expect(snaps.uz.items[0].bullets[0]).toMatch(/^uz:/)
+    expect(ai.summarizeNotice).toHaveBeenCalledTimes(summaries)
   })
   it('학식: 식단은 사이트에서 받고(2분 공유), 메뉴 이름 번역은 주 1회 만든 사전에서 찾기만 한다', async () => {
     vi.doMock('server-only', () => ({}))

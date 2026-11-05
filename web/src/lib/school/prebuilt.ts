@@ -48,6 +48,21 @@ export const weekKey = (now = Date.now()) => {
   return addDays(day, -day.dow).iso
 }
 
+/**
+ * 제목 번역은 4개씩 나눠 보내고, 번역이 안 된 묶음은 한 번 더 시도한다.
+ * 8개를 한 번에 보내면 우즈베크어에서 AI가 항목을 합치거나 나눠 개수가 안 맞아 통째로 실패한 적이 있다
+ */
+export async function translateTitles(titles: string[], lang: Lang): Promise<string[]> {
+  const out: string[] = []
+  for (let i = 0; i < titles.length; i += 4) {
+    const chunk = titles.slice(i, i + 4)
+    let tr = await translateList(chunk, lang)
+    if (tr.every((x, k) => x === chunk[k])) tr = await translateList(chunk, lang)
+    out.push(...tr)
+  }
+  return out
+}
+
 /** 동시에 n개씩 */
 async function pool<T, R>(items: T[], n: number, run: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length)
@@ -78,7 +93,7 @@ export async function buildNotices(board: NoticeBoard, store: CacheStore = getCa
   // 제목 번역: 언어마다 한 번(새 제목만). retitle이면 번역 지침을 고친 뒤처럼 저장된 제목도 모두 다시 번역(요약은 그대로 둔다)
   const titles = Object.fromEntries(await Promise.all(CODES.map(async l => {
     const need = opts.retitle ? items : items.filter(n => !old(l, n.id))
-    const tr = l === 'ko' || need.length === 0 ? need.map(n => n.title) : await translateList(need.map(n => n.title), l)
+    const tr = l === 'ko' || need.length === 0 ? need.map(n => n.title) : await translateTitles(need.map(n => n.title), l)
     const map = new Map(need.map((n, i) => [n.id, tr[i] || n.title]))
     return [l, items.map(n => (opts.retitle ? undefined : old(l, n.id)?.titleTr) ?? map.get(n.id) ?? n.title)] as const
   }))) as Record<Lang, string[]>
