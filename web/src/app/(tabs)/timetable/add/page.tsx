@@ -90,7 +90,7 @@ export default async function AddCoursePage({ searchParams }: PageProps<'/timeta
                   ? <form action={removeItem.bind(null, table.id, c.code, here)}><button className={btn.small}>{t(lang, 'remove')}</button></form>
                   : blocked
                     ? <span className="inline-flex items-center gap-1 rounded-xl bg-danger/10 px-2.5 py-2 text-[13px] font-semibold text-danger"><Prohibit size={14} weight="bold" aria-hidden />{t(lang, 'clashLabel')}</span>
-                    : <form action={addFromCatalog.bind(null, table.id, c.code, here)}><button className="press inline-flex h-9 items-center rounded-xl bg-teal px-3.5 text-[14px] font-bold text-white">{t(lang, 'add')}</button></form>}
+                    : <form action={addFromCatalog.bind(null, table.id, c.code, here)}><button className="press inline-flex min-h-11 items-center rounded-xl bg-teal px-3.5 text-[14px] font-bold text-white">{t(lang, 'add')}</button></form>}
               </li>
             )
           })}

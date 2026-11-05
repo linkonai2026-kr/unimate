@@ -20,8 +20,16 @@ type Props = {
 // 위성사진 원본은 18배율까지. 그 위로는 받아 둔 사진을 늘려서 빈 타일(깨짐)이 안 보이게 한다
 const MAX_ZOOM = 20
 const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
-const tag = (text: string, bg: string) => `<span style="display:inline-block;transform:translate(-50%,-115%);white-space:nowrap;background:${bg};color:#fff;font:700 12px/1 system-ui;padding:6px 9px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.3)">${esc(text)}</span>`
+// 긴 건물 이름이 좁은 화면 밖으로 나가지 않게 60vw에서 말줄임
+const tag = (text: string, bg: string) => `<span style="display:inline-block;transform:translate(-50%,-115%);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis;background:${bg};color:#fff;font:700 12px/1 system-ui;padding:6px 9px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.3)">${esc(text)}</span>`
 const pt = (p: LatLng) => [p.lat, p.lng] as [number, number]
+/** 손가락으로 누르기 쉬운 반지름(px). 점은 7~10px라 둘레에 투명한 원을 겹쳐 둔다 */
+const HIT_RADIUS = 22
+/** 경로에 맞출 때 위·아래 여백(px): 아래 시트가 화면의 약 58%를 덮고, 위는 상단 막대·검색 상자 */
+const fitPadding = (map: Leaflet.Map) => {
+  const h = map.getSize().y
+  return { top: Math.min(120, Math.round(h * 0.25)), bottom: Math.round(h * 0.58) + 16 }
+}
 
 /** 점(SVG)과 이름표를 버튼처럼: 화면 낭독기 이름, Tab 이동, Enter·Space로 고르기 */
 function asButton(node: Element | undefined, label: string, onPick: () => void) {
@@ -38,7 +46,11 @@ function asButton(node: Element | undefined, label: string, onPick: () => void) 
 export default function MapView({ center, pins, selected, route, me, follow, startLabel = 'Start', endLabel = 'End', layerLabels = ['Satellite', 'Map'], onPick, accuracy, recenter = 0, heading }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const map = useRef<Leaflet.Map | null>(null)
-  const layer = useRef<Leaflet.LayerGroup | null>(null)
+  // 층을 셋으로 나눈다: 경로(출발·도착 표시 포함), 건물 핀·이름표, 내 위치.
+  // 내 위치는 1초마다 바뀌는데 그때마다 핀까지 다시 만들면 누르던 핀이 손가락 밑에서 사라진다
+  const routeLayer = useRef<Leaflet.LayerGroup | null>(null)
+  const pinLayer = useRef<Leaflet.LayerGroup | null>(null)
+  const meLayer = useRef<Leaflet.LayerGroup | null>(null)
   const L = useRef<typeof Leaflet | null>(null)
   const pick = useRef(onPick)
   useEffect(() => { pick.current = onPick })
@@ -46,43 +58,57 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
   const aim = useRef(heading)
   useEffect(() => { aim.current = heading; aimCone(cone.current, heading) }, [heading])
 
-  const draw = useRef(() => {})
+  const hasRoute = !!(route && route.length > 1)
+  const drawRoute = useRef(() => {})
+  const drawPins = useRef(() => {})
+  const drawMe = useRef(() => {})
   // 지도가 경로보다 늦게 준비될 수 있어서, 준비된 직후에도 한 번 맞춘다
   const fit = useRef(() => {})
   // 렌더마다 최신 props로 그리는 함수를 갈아 끼운다(아래 효과들보다 먼저 실행)
-  useEffect(() => { draw.current = () => {
-    const mod = L.current, g = layer.current
-    if (!mod || !g) return
-    g.clearLayers()
-    const line = route && route.length > 1 ? route.map(pt) : null
-    if (line) {
+  useEffect(() => {
+    drawRoute.current = () => {
+      const mod = L.current, g = routeLayer.current
+      if (!mod || !g) return
+      g.clearLayers()
+      if (!route || route.length < 2) return
+      const line = route.map(pt)
       mod.polyline(line, { color: '#ffffff', weight: 11, opacity: 0.95, interactive: false }).addTo(g)
       mod.polyline(line, { color: '#27a395', weight: 7, opacity: 1, interactive: false }).addTo(g)
-    }
-    for (const p of pins) {
-      const on = p.id === selected
-      const choose = () => pick.current(p.id)
-      const dot = mod.circleMarker(pt(p), { radius: on ? 10 : 7, color: '#fff', weight: 2, fillColor: on ? '#27a395' : '#011d48', fillOpacity: 1 })
-      // 위성사진 지명이 영어·띄엄띄엄이라, 캠퍼스 건물 이름은 사용자 언어로 띄워 둔다(멀리서는 점만).
-      // 경로를 보여 줄 때 도착 건물은 도착 표시가 이름을 대신한다(두 이름표가 겹치지 않게)
-      if (!(line && on)) dot.bindTooltip(`<span class="pin-name">${esc(p.label)}</span>`, { permanent: true, direction: 'top', offset: [0, -8], className: on ? 'pin-label pin-label-on' : 'pin-label', interactive: true })
-      dot.on('click', choose).addTo(g)
-      // 점이 작아서 이름표도 누르면 고르게 한다. 점에는 건물 이름을 붙여 화면 낭독기·테스트가 이름으로 찾게 한다
-      dot.getTooltip()?.getElement()?.addEventListener('click', choose)
-      asButton(dot.getElement(), p.label, choose)
-    }
-    if (line) {
       const icon = (html: string) => mod.divIcon({ html, className: '', iconSize: [0, 0] })
       mod.marker(line[0], { icon: icon(tag(startLabel, '#011d48')), interactive: false, keyboard: false }).addTo(g)
       mod.marker(line[line.length - 1], { icon: icon(tag(endLabel, '#e5484d')), interactive: false, keyboard: false }).addTo(g)
     }
-    if (me) {
+    drawPins.current = () => {
+      const mod = L.current, g = pinLayer.current
+      if (!mod || !g) return
+      g.clearLayers()
+      for (const p of pins) {
+        const on = p.id === selected
+        const choose = () => pick.current(p.id)
+        // 점 둘레의 보이지 않는 원: 손가락으로 점 근처를 눌러도 고른다(점보다 먼저 넣어 점이 위에 보이게)
+        mod.circleMarker(pt(p), { pane: 'pins', radius: HIT_RADIUS, stroke: false, fill: true, fillOpacity: 0, bubblingMouseEvents: false }).on('click', choose).addTo(g)
+        const dot = mod.circleMarker(pt(p), { pane: 'pins', radius: on ? 10 : 7, color: '#fff', weight: 2, fillColor: on ? '#27a395' : '#011d48', fillOpacity: 1, bubblingMouseEvents: false })
+        // 위성사진 지명이 영어·띄엄띄엄이라, 캠퍼스 건물 이름은 사용자 언어로 띄워 둔다(멀리서는 점만).
+        // 경로를 보여 줄 때 도착 건물은 도착 표시가 이름을 대신한다(두 이름표가 겹치지 않게)
+        if (!(hasRoute && on)) dot.bindTooltip(`<span class="pin-name">${esc(p.label)}</span>`, { permanent: true, direction: 'top', offset: [0, -8], className: on ? 'pin-label pin-label-on' : 'pin-label', interactive: true })
+        dot.on('click', choose).addTo(g)
+        // 점이 작아서 이름표도 누르면 고르게 한다. 점에는 건물 이름을 붙여 화면 낭독기·테스트가 이름으로 찾게 한다
+        dot.getTooltip()?.getElement()?.addEventListener('click', choose)
+        asButton(dot.getElement(), p.label, choose)
+      }
+    }
+    drawMe.current = () => {
+      const mod = L.current, g = meLayer.current
+      if (!mod || !g) return
+      g.clearLayers()
+      cone.current = null
+      if (!me) return
       mod.circle(pt(me), { radius: accuracyRadius(accuracy), color: '#3b82f6', weight: 0, fillOpacity: 0.18, interactive: false }).addTo(g)
       const c = mod.marker(pt(me), { icon: mod.divIcon({ html: ME_HTML, className: '', iconSize: [72, 72], iconAnchor: [36, 36] }), interactive: false, keyboard: false, zIndexOffset: 1000 }).addTo(g)
       cone.current = c.getElement()?.querySelector<HTMLElement>('[data-cone]') ?? null
       aimCone(cone.current, aim.current)
     }
-  } })
+  })
 
   useEffect(() => {
     let alive = true
@@ -97,13 +123,19 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
       ]).addTo(m)
       const streets = mod.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxNativeZoom: 19, maxZoom: MAX_ZOOM, attribution: '© OpenStreetMap' })
       mod.control.layers({ [layerLabels[0]]: satellite, [layerLabels[1]]: streets }, undefined, { position: 'topleft' }).addTo(m)
-      layer.current = mod.layerGroup().addTo(m)
+      // 핀은 경로선(overlayPane 400)보다 위, 표시 마커(markerPane 600)보다 아래 자기 층에 둔다. 경로를 다시 그려도 핀을 덮지 않는다
+      m.createPane('pins').style.zIndex = '450'
+      routeLayer.current = mod.layerGroup().addTo(m)
+      pinLayer.current = mod.layerGroup().addTo(m)
+      meLayer.current = mod.layerGroup().addTo(m)
       map.current = m
       // 건물이 27곳이라 멀리서 보면 이름표가 겹친다. 17배율 미만에선 점만(고른 건물은 이름까지)
       const labels = () => box.current?.classList.toggle('labels-far', m.getZoom() < 17)
       m.on('zoomend', labels)
       labels()
-      draw.current()
+      drawRoute.current()
+      drawPins.current()
+      drawMe.current()
       // 상자 크기가 잡힌 다음 프레임에 맞춘다(바로 맞추면 크기 0으로 계산돼 최대 확대로 열린다).
       // 처음엔 캠퍼스 건물 전체, 경로가 있으면 경로
       frame = requestAnimationFrame(() => {
@@ -118,7 +150,9 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
       cancelAnimationFrame(frame)
       map.current?.remove()
       map.current = null
-      layer.current = null
+      routeLayer.current = null
+      pinLayer.current = null
+      meLayer.current = null
     }
     // 지도는 처음 한 번만 만든다
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,9 +167,18 @@ export default function MapView({ center, pins, selected, route, me, follow, sta
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => draw.current(), [pins, selected, route, me, accuracy, startLabel, endLabel])
+  // 핀은 경로 유무(도착 건물 이름표를 뺄지)만 보고, 내 위치 변화에는 다시 만들지 않는다
+  useEffect(() => drawPins.current(), [pins, selected, hasRoute])
+  useEffect(() => drawRoute.current(), [route, startLabel, endLabel])
+  useEffect(() => drawMe.current(), [me, accuracy])
   useEffect(() => {
-    fit.current = () => { if (map.current && route && route.length > 1 && !follow) map.current.fitBounds(route.map(pt), { paddingTopLeft: [50, 120], paddingBottomRight: [30, 330] }) }
+    fit.current = () => {
+      const m = map.current
+      if (!m || !route || route.length < 2 || follow) return
+      // 아래 여백은 실제 지도 높이에서 계산한다(고정 330px이면 작은 화면에서 경로가 시트 밑에 깔린다)
+      const pad = fitPadding(m)
+      m.fitBounds(route.map(pt), { paddingTopLeft: [50, pad.top], paddingBottomRight: [30, pad.bottom] })
+    }
     fit.current()
   }, [route, follow])
   useEffect(() => {

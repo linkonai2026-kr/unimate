@@ -22,13 +22,14 @@ export default async function WritePage({ params }: PageProps<'/write/[id]'>) {
       <SanctionBanner lang={lang} status={sanctionStatus(me)} />
       <div className="rise card mx-3 space-y-4 p-5">
         <p className="text-[14px] font-semibold text-teal">{board.name}</p>
-        <input name="title" required maxLength={100} autoComplete="off" aria-label={t(lang, 'title')} placeholder={t(lang, 'title')} className="w-full text-[22px] font-bold tracking-tight outline-none placeholder:text-[#c4c9d2]" />
-        <textarea name="body" required maxLength={5000} rows={9} aria-label={t(lang, 'bodyPlaceholder')} placeholder={t(lang, 'bodyPlaceholder')} className="w-full resize-none text-[16px] leading-relaxed outline-none placeholder:text-[#a4abb8]" />
+        {/* 제목은 길어지면 줄이 늘어나는 한 줄 textarea(서버에서 줄바꿈은 한 줄로 정리) */}
+        <textarea name="title" required maxLength={100} rows={1} autoComplete="off" enterKeyHint="next" aria-label={t(lang, 'title')} placeholder={t(lang, 'title')} className="field-sizing-content w-full resize-none text-[22px] font-bold leading-snug tracking-tight outline-none placeholder:text-[#c4c9d2]" />
+        <textarea name="body" required maxLength={5000} aria-label={t(lang, 'bodyPlaceholder')} placeholder={t(lang, 'bodyPlaceholder')} className="field-sizing-content min-h-[40dvh] w-full resize-none text-[16px] leading-relaxed outline-none placeholder:text-[#a4abb8]" />
         <ImagePicker lang={lang} />
       </div>
       <BottomCTA>
         {/* 비밀게시판은 항상 익명(체크를 풀 수 없음, 서버도 강제) */}
-        <label className="mb-3 flex items-center gap-2 px-1 text-[15px] font-medium">
+        <label className="mb-2 flex min-h-11 items-center gap-2 px-1 text-[15px] font-medium">
           <input type="checkbox" name="anonymous" defaultChecked disabled={anonOnly} className="h-5 w-5 accent-[var(--teal)]" />{t(lang, 'anonymous')}
         </label>
         <button disabled={suspended} className={btn.primary}>{t(lang, 'submit')}</button>

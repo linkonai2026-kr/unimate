@@ -200,6 +200,9 @@ function ReportedNotice({ lang, reported }: { lang: Lang; reported: ReportResult
   )
 }
 
+/** 댓글 줄의 답글·신고·공감 버튼 */
+const ACT = 'press inline-flex min-h-9 min-w-9 items-center justify-center rounded-lg px-2.5 text-[13px] text-muted'
+
 function CommentRow({ c, lang, postId, reply }: { c: CommentView; lang: Lang; postId: string; reply?: boolean }) {
   if (c.hidden) {
     return (
@@ -216,8 +219,8 @@ function CommentRow({ c, lang, postId, reply }: { c: CommentView; lang: Lang; po
         <span className={`flex min-w-0 flex-1 items-center gap-1.5 text-[14px] font-bold ${c.isPostAuthor ? 'text-teal' : ''}`}><Flag code={c.nation} size={11} /><span className="truncate">{c.author}</span></span>
         {/* 손가락으로 누르기 쉽게 버튼은 36px 이상, 줄 높이는 -my-1로 유지 */}
         <span className="-my-1 flex shrink-0 items-center gap-0.5">
-          {!reply && <Link href={`${self}?reply=${encodeURIComponent(c.id)}`} scroll={false} className={ACT}>{t(lang, 'reply')}</Link>}
-          {!c.mine && <Link href={`${self}?report=${encodeURIComponent(c.id)}`} scroll={false} aria-label={`${t(lang, 'report')}: ${c.author}`} className={ACT}>{t(lang, 'report')}</Link>}
+          {!reply && <Link href={`${self}?reply=${encodeURIComponent(c.id)}`} scroll={false} className={`${ACT} font-medium`}>{t(lang, 'reply')}</Link>}
+          {!c.mine && <Link href={`${self}?report=${encodeURIComponent(c.id)}`} scroll={false} aria-label={`${t(lang, 'report')}: ${c.author}`} className={`${ACT} font-medium`}>{t(lang, 'report')}</Link>}
           <form action={like.bind(null, 'comment', c.id, !c.liked)}><button aria-label={t(lang, 'like')} aria-pressed={c.liked} className={`${ACT} gap-0.5 font-semibold ${c.liked ? 'text-danger' : ''}`}><HeartIcon size={14} weight={c.liked ? 'fill' : 'regular'} aria-hidden />{c.likes || ''}</button></form>
         </span>
       </div>

@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { LANGS, t, type Lang } from '@/lib/i18n'
+import { visitHref } from '@/lib/visit'
 
 /** 로그인·가입 화면 주소(언어와 돌아갈 주소를 유지) */
 export const authHref = (path: string, lang: Lang, next?: string | null) =>
@@ -25,6 +26,10 @@ export default function AuthShell({ lang, path, next, children, footer }: { lang
       </nav>
       <main className="rise mt-8 flex-1">{children}</main>
       <div className="mt-6 text-center text-[15px]">{footer}</div>
+      {/* 이용약관·개인정보처리방침은 로그인 없이 보는 방문객 화면으로 연다 */}
+      <p className="mt-4 text-center text-[13px] text-muted">
+        <Link href={visitHref('/visit/terms', lang)} className="font-semibold">{t(lang, 'terms')}</Link> · <Link href={visitHref('/visit/privacy', lang)} className="font-semibold">{t(lang, 'privacy')}</Link>
+      </p>
       <p className="mt-3 text-center text-[12px] leading-relaxed text-muted">{t(lang, 'statsNotice')}</p>
     </div>
   )

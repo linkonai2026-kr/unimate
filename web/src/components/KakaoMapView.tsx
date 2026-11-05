@@ -50,7 +50,12 @@ function loadSdk(appKey: string): Promise<Kakao> {
 
 const el = (html: string) => { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild as HTMLElement }
 const esc = (s: string) => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
-const tag = (text: string, bg: string) => `<span style="display:inline-block;white-space:nowrap;background:${bg};color:#fff;font:700 12px/1 system-ui;padding:6px 9px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.3)">${esc(text)}</span>`
+// 긴 건물 이름이 좁은 화면 밖으로 나가지 않게 60vw에서 말줄임
+const tag = (text: string, bg: string) => `<span style="display:inline-block;white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis;background:${bg};color:#fff;font:700 12px/1 system-ui;padding:6px 9px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,.3)">${esc(text)}</span>`
+// 핀(14~18px 점)은 손가락보다 작아서, 점 가운데에 44px 투명 원을 겹쳐 누르는 범위를 넓힌다(지도 안에서만 쓰는 규칙이라 여기에 둔다)
+const PIN_CSS = '.kpin::before{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%);border-radius:50%}'
+/** 경로에 맞출 때 위·아래 여백(px): 아래 시트가 화면의 약 58%를 덮고, 위는 상단 막대·검색 상자 */
+const fitPadding = (h: number) => ({ top: Math.min(120, Math.round(h * 0.25)), bottom: Math.round(h * 0.58) + 16 })
 
 export default function KakaoMapView({ appKey, center, pins, selected, route, me, follow, startLabel = 'Start', endLabel = 'End', onPick, accuracy, recenter = 0, onFail, heading }: Props) {
   const box = useRef<HTMLDivElement>(null)
@@ -82,7 +87,7 @@ export default function KakaoMapView({ appKey, center, pins, selected, route, me
       // 점의 한가운데가 건물 좌표에 오게 한다: 점(버튼)을 좌표에 두고 가운데 정렬, 이름표는 점 바로 위.
       // 멀리서 보면 이름표가 겹쳐서 점만 보이고(.labels-far), 고른 건물은 늘 이름표를 띄운다
       const size = on ? 18 : 14
-      const node = el(`<button type="button" aria-label="${esc(p.label)}" aria-pressed="${on}" style="position:relative;display:block;width:${size}px;height:${size}px;transform:translate(-50%,-50%);padding:0;box-sizing:border-box;border-radius:50%;border:2px solid #fff;background:${on ? '#27a395' : '#011d48'};box-shadow:0 1px 3px rgba(0,0,0,.35);cursor:pointer">
+      const node = el(`<button type="button" class="kpin" aria-label="${esc(p.label)}" aria-pressed="${on}" style="position:relative;display:block;width:${size}px;height:${size}px;transform:translate(-50%,-50%);padding:0;box-sizing:border-box;border-radius:50%;border:2px solid #fff;background:${on ? '#27a395' : '#011d48'};box-shadow:0 1px 3px rgba(0,0,0,.35);cursor:pointer">
         <span class="${on ? '' : 'kpin-label'}" aria-hidden="true" style="position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);padding:3px 7px;border-radius:8px;font:700 ${on ? 13 : 11}px/1.2 system-ui;background:${on ? '#27a395' : '#fff'};color:${on ? '#fff' : '#011d48'};box-shadow:0 1px 4px rgba(0,0,0,.25);white-space:nowrap">${esc(p.label)}</span></button>`)
       node.addEventListener('click', () => pick.current(p.id))
       add(new k.maps.CustomOverlay({ position: ll(p), content: node, xAnchor: 0, yAnchor: 0, zIndex: on ? 3 : 2, clickable: true }))
@@ -149,7 +154,9 @@ export default function KakaoMapView({ appKey, center, pins, selected, route, me
       if (!k || !map.current || !route || route.length < 2 || follow) return
       const b = new k.maps.LatLngBounds()
       route.forEach(p => b.extend(new k.maps.LatLng(p.lat, p.lng)))
-      map.current.setBounds(b, 120, 30, 330, 50)
+      // 아래 여백은 실제 지도 높이에서 계산한다(고정 330px이면 작은 화면에서 경로가 시트 밑에 깔린다)
+      const pad = fitPadding(box.current?.clientHeight ?? 0)
+      map.current.setBounds(b, pad.top, 30, pad.bottom, 50)
     }
     fit.current()
   }, [route, follow])
@@ -168,5 +175,6 @@ export default function KakaoMapView({ appKey, center, pins, selected, route, me
     map.current.panTo(new k.maps.LatLng(me.lat, me.lng))
   }, [recenter, me])
 
-  return <div ref={box} className="h-full w-full" />
+  // style은 지도 상자 밖에 둔다(SDK가 상자 안을 제 것으로 쓴다)
+  return <><style>{PIN_CSS}</style><div ref={box} className="h-full w-full" /></>
 }

@@ -16,7 +16,7 @@ import { SEMS, semLabel, tableLabel } from '@/lib/timetable/sem'
 import { fmtMin } from '@/lib/timetable/slots'
 import { groupItems, keyOf, resolveTable, type TableItem } from '@/lib/timetable/view'
 
-const circle = 'press flex h-10 w-10 items-center justify-center rounded-full bg-bg text-ink'
+const circle = 'press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-bg text-ink'
 const one = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '')
 const slotsText = (i: TableItem, lang: Lang) => i.slots.map(s => `${dayName(s.day, lang)} ${fmtMin(s.start)}–${fmtMin(s.end)}`).join(', ')
 const credit = (i: TableItem) => (Number.isFinite(i.credit) && i.credit! > 0 ? i.credit! : 0)
@@ -93,14 +93,14 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
           <li><Row href="/friends" icon={<IconBox tone="teal"><UsersThree size={22} weight="fill" /></IconBox>} title={t(lang, 'freeTogether')} /></li>
           <li><Row href="/friends" icon={<IconBox tone="navy"><UserPlus size={22} weight="fill" /></IconBox>} title={t(lang, 'addFriend')} /></li>
           {shownFriends.map(f => (
-            <li key={f.id}><Row href={`/friends/${f.handle}`} icon={<Avatar n={f.avatar ?? 0} photo={f.photo} size={40} />} title={<span className="flex items-center gap-1.5">{f.nickname}<Flag code={f.nationality} size={12} /></span>} sub={`@${f.handle}`} /></li>
+            <li key={f.id}><Row href={`/friends/${f.handle}`} icon={<Avatar n={f.avatar ?? 0} photo={f.photo} size={40} />} title={<span className="flex items-center gap-1.5"><span className="truncate">{f.nickname}</span><Flag code={f.nationality} size={12} /></span>} sub={`@${f.handle}`} /></li>
           ))}
         </ul>
       </Section>
 
       {open && (
         <Sheet close={here}>
-          <p className="text-[22px] font-bold tracking-tight">{open.name}</p>
+          <p className="break-words text-[22px] font-bold tracking-tight">{open.name}</p>
           <p className="mt-1 text-[15px] text-muted">{[open.prof || (open.code && !isCustomCode(open.code) ? t(lang, 'profTbd') : ''), credit(open) ? t(lang, 'creditsN', { n: String(credit(open)) }) : ''].filter(Boolean).join(' · ')}</p>
           <p className="mt-3 rounded-2xl bg-bg-soft px-4 py-3 text-[15px]">{slotsText(open, lang)}{open.place && <span className="mt-0.5 block text-muted">{open.place}</span>}</p>
           {room?.buildingId && building
@@ -108,10 +108,11 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
             : <span className={`${btn.soft} mt-4 text-muted`} aria-disabled="true">{t(lang, 'route')}</span>}
           <Link href={`/lectures/${encodeURIComponent(open.name)}`} className={`${btn.soft} mt-2`}><Star size={18} weight="fill" className="text-[#b07f00]" aria-hidden />{t(lang, 'reviews')}</Link>
           <p className="mt-5 text-[13px] font-semibold text-muted">{t(lang, 'color')}</p>
-          <div className="mt-2 flex justify-between">
+          {/* 색 동그라미는 손가락 크기(44px)로, 좁은 화면에서는 네 개씩 두 줄 */}
+          <div className="mt-2 grid grid-cols-4 gap-y-3 justify-items-center">
             {PALETTE.map((hex, i) => {
               const on = (table.colors[open.key] ?? colorIndex(open.name)) === i
-              return <form key={hex} action={setColor.bind(null, table.id, open.key, i)}><button aria-label={`${t(lang, 'color')} ${i + 1}`} aria-pressed={on} className={`press h-9 w-9 rounded-full ${on ? 'ring-2 ring-navy ring-offset-2' : ''}`} style={{ background: hex }} /></form>
+              return <form key={hex} action={setColor.bind(null, table.id, open.key, i)}><button aria-label={`${t(lang, 'color')} ${i + 1}`} aria-pressed={on} className={`press h-11 w-11 rounded-full ${on ? 'ring-2 ring-navy ring-offset-2' : ''}`} style={{ background: hex }} /></form>
             })}
           </div>
           <form action={removeItem.bind(null, table.id, open.key, here)} className="mt-4"><button className="press flex w-full items-center justify-center gap-1.5 py-3 text-[15px] font-semibold text-danger"><Trash size={18} aria-hidden />{t(lang, 'removeFromTable')}</button></form>
@@ -122,25 +123,26 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
         <Sheet close={here}>
           <p className="text-[13px] font-semibold text-muted">{t(lang, 'semester')}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {SEMS.map(s => <Link key={s} href={`/timetable?sem=${encodeURIComponent(s)}&sheet=tables`} scroll={false} aria-current={s === sem ? 'true' : undefined} className={`press rounded-full px-3.5 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg-soft'}`}>{semLabel(s, lang)}</Link>)}
+            {SEMS.map(s => <Link key={s} href={`/timetable?sem=${encodeURIComponent(s)}&sheet=tables`} scroll={false} aria-current={s === sem ? 'true' : undefined} className={`press inline-flex min-h-11 items-center rounded-full px-3.5 py-2 text-[14px] font-semibold ${s === sem ? 'bg-navy text-white' : 'bg-bg-soft'}`}>{semLabel(s, lang)}</Link>)}
           </div>
           <ul className="mt-4 overflow-hidden rounded-2xl bg-bg-soft">
             {tables.map(x => (
               <li key={x.id}><Link href={`/timetable?t=${encodeURIComponent(x.id)}`} aria-current={x.id === table.id ? 'true' : undefined} className={`tap flex min-h-14 items-center gap-2 px-4 ${x.id === table.id ? 'font-bold text-navy' : ''}`}>{tableLabel(x.name, lang)}{x.primary && primaryTag}</Link></li>
             ))}
           </ul>
-          <form action={createTable.bind(null, sem)} className="mt-3 flex gap-2">
-            <input name="name" maxLength={20} aria-label={t(lang, 'tableName')} placeholder={t(lang, 'tableName')} className={`${field} h-12 flex-1`} />
-            <button className={`${btn.smallPrimary} h-12 rounded-2xl px-4`}><Plus size={16} weight="bold" aria-hidden />{t(lang, 'newTable')}</button>
+          {/* 입력칸이 버튼에 밀려 좁아지지 않게 버튼은 아래 줄에 */}
+          <form action={createTable.bind(null, sem)} className="mt-3 flex flex-col gap-2">
+            <input name="name" maxLength={20} aria-label={t(lang, 'tableName')} placeholder={t(lang, 'tableName')} autoComplete="off" enterKeyHint="done" className={`${field} h-12`} />
+            <button className={`${btn.smallPrimary} h-12 w-full rounded-2xl px-4`}><Plus size={16} weight="bold" aria-hidden />{t(lang, 'newTable')}</button>
           </form>
         </Sheet>
       )}
 
       {sheet === 'settings' && (
         <Sheet close={here}>
-          <form action={renameTable.bind(null, table.id)} className="flex gap-2">
-            <input name="name" defaultValue={tableLabel(table.name, lang)} required maxLength={20} aria-label={t(lang, 'tableName')} className={`${field} h-12 flex-1`} />
-            <button className={`${btn.small} h-12 rounded-2xl px-4`}>{t(lang, 'rename')}</button>
+          <form action={renameTable.bind(null, table.id)} className="flex flex-col gap-2">
+            <input name="name" defaultValue={tableLabel(table.name, lang)} required maxLength={20} aria-label={t(lang, 'tableName')} autoComplete="off" enterKeyHint="done" className={`${field} h-12`} />
+            <button className={`${btn.small} h-12 w-full rounded-2xl px-4`}>{t(lang, 'rename')}</button>
           </form>
           <div className="mt-3 overflow-hidden rounded-2xl bg-bg-soft">
             {!table.primary && <form action={makePrimary.bind(null, table.id)}><button className="tap flex min-h-14 w-full items-center px-4 text-left text-[16px]">{t(lang, 'setPrimary')}</button></form>}
@@ -153,8 +155,9 @@ export default async function TimetablePage({ searchParams }: PageProps<'/timeta
 
       {sheet === 'list' && (
         <Sheet close={here}>
-          <p className="text-[19px] font-bold">{tableLabel(table.name, lang)} <span className="text-[15px] font-medium text-muted">{t(lang, 'creditsN', { n: String(credits) })}</span></p>
-          <ul className="mt-3 max-h-[50vh] overflow-y-auto">
+          <p className="break-words text-[19px] font-bold">{tableLabel(table.name, lang)} <span className="text-[15px] font-medium text-muted">{t(lang, 'creditsN', { n: String(credits) })}</span></p>
+          {/* 행(Row)의 좌우 여백이 시트 여백과 겹치지 않게 시트 가장자리까지 넓힌다 */}
+          <ul className="-mx-5 mt-3 max-h-[50dvh] overflow-y-auto">
             {items.map(i => (
               <li key={i.key}><Row href={itemHref(i.key)} title={<span>{i.name} <span className="text-[13px] font-normal text-muted">{credit(i) ? t(lang, 'creditsN', { n: String(credit(i)) }) : ''}</span></span>} sub={[slotsText(i, lang), i.place].filter(Boolean).join(' · ')} /></li>
             ))}

@@ -9,7 +9,7 @@
 
 **One campus, every language**
 
-강원대학교 삼척캠퍼스 학생과 유학생을 위한 다국어 캠퍼스 앱
+강원대학교 삼척캠퍼스 학생과 유학생을 위한 다국어 캠퍼스 앱 · **Team AI²**
 
 <br>
 
@@ -279,5 +279,7 @@ Vitest는 외부 키를 비운 채로 돌아서 항상 메모리 저장소와 �
 <div align="center">
 <img src="web/public/brand/symbol.png" alt="" width="48">
 <br>
-<sub>강원대학교 삼척캠퍼스 해커톤 팀이 만들었습니다</sub>
+<b>Team AI²</b>
+<br>
+<sub>강원대학교 삼척캠퍼스 해커톤 팀 AI²가 만들었습니다</sub>
 </div>

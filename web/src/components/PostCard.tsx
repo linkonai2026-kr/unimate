@@ -19,16 +19,16 @@ export default function PostCard({ p, lang, showBoard }: { p: PostView & { board
         <p className="mt-0.5 line-clamp-1 text-[14px] text-muted">{p.body}</p>
         <div className="mt-2 flex items-center gap-1.5 text-[12px] text-[#8b93a1]">
           <Flag code={p.nation} size={11} />
-          <span>{p.author}</span>
+          <span className="min-w-0 truncate">{p.author}</span>
           <span aria-hidden>·</span>
-          <span>{timeAgo(p.createdAt, lang)}</span>
+          <span className="shrink-0 whitespace-nowrap">{timeAgo(p.createdAt, lang)}</span>
           {(p.translated || p.pending) && (
             <>
-              <Globe size={13} className={`text-teal ${p.pending ? 'animate-pulse' : ''}`} aria-hidden />
+              <Globe size={13} className={`shrink-0 text-teal ${p.pending ? 'animate-pulse' : ''}`} aria-hidden />
               <span className="sr-only">{p.pending ? t(lang, 'translating') : t(lang, 'translatedFrom', { lang: fromName })}</span>
             </>
           )}
-          <span className="ml-auto flex gap-2.5 font-semibold">
+          <span className="ml-auto flex shrink-0 gap-2.5 whitespace-nowrap font-semibold">
             {p.likes > 0 && <span className="text-danger"><Heart /> {p.likes}<span className="sr-only"> {t(lang, 'like')}</span></span>}
             {p.comments > 0 && <span className="text-teal"><Bubble /> {p.comments}<span className="sr-only"> {t(lang, 'comment')}</span></span>}
           </span>
