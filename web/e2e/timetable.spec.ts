@@ -1,4 +1,4 @@
-// 시간표 캡처 업로드 → 확인 화면 → 저장 → 강의 시트에서 길찾기 링크까지
+// 시간표 캡처 업로드 → 확인 화면 → 저장 → 강의 시트에서 길찾기 링크까지(건물 이름은 사용자 언어로)
 import { test, expect } from '@playwright/test'
 import path from 'node:path'
 
@@ -17,5 +17,5 @@ test('캡처로 시간표 등록', async ({ page }) => {
   await page.getByRole('button', { name: 'Lưu' }).click()
   await page.waitForURL(/\/timetable\?t=/)
   await page.getByRole('link', { name: /Mạng máy tính|컴퓨터네트워크/ }).first().click()
-  await expect(page.getByRole('link', { name: /Chỉ đường · 5공학관/ })).toHaveAttribute('href', '/map?b=eng5&room=304&go=1')
+  await expect(page.getByRole('link', { name: /Chỉ đường · Tòa Kỹ thuật 5/ })).toHaveAttribute('href', '/map?b=eng5&room=304&go=1')
 })

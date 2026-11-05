@@ -24,6 +24,7 @@ import { sanctionStatus } from '@/lib/moderation'
 import { nextClass } from '@/lib/timetable/next'
 import { parsePlace } from '@/lib/timetable/rooms'
 import { fmtMin } from '@/lib/timetable/slots'
+import { POPULAR } from '@/lib/visit'
 
 const QUICK: { href: string; key: UiKey; tone: Tone; Icon: typeof Megaphone }[] = [
   { href: '/notices', key: 'notices', tone: 'navy', Icon: Megaphone },
@@ -49,6 +50,7 @@ export default async function Home() {
   const nc = nextClass(courses)
   const room = nc ? parsePlace(nc.course.place) : null
   const bld = buildingById(room?.buildingId)
+  const places = POPULAR.map(id => buildingById(id)).filter(b => b !== undefined)
 
   return (
     <div className="space-y-3 pb-6 pt-1">
@@ -98,6 +100,20 @@ export default async function Home() {
             <Link href="/timetable" className="press mt-4 inline-flex h-11 items-center gap-1 rounded-2xl bg-white/12 px-4 text-[15px] font-semibold">{t(lang, 'seeTimetable')}<CaretRight size={16} weight="bold" aria-hidden /></Link>
           </>
         )}
+      </section>
+
+      {/* 시간표가 없어도 길찾기를 바로 써 볼 수 있게: 자주 찾는 곳을 누르면 그 건물로 안내를 시작한다 */}
+      <section className="rise card mx-3 p-5">
+        <h2 className="flex items-center gap-1.5 text-[17px] font-bold"><NavigationArrow size={20} weight="fill" className="text-teal" aria-hidden />{t(lang, 'visitPopular')}</h2>
+        <ul className="mt-3 grid grid-cols-2 gap-2">
+          {places.map(b => (
+            <li key={b.id}>
+              <Link href={`/map?b=${b.id}&go=1`} className="press flex h-full items-center rounded-2xl bg-bg-soft px-4 py-3 text-[15px] font-semibold leading-snug">
+                {buildingName(b, lang)}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <nav className="rise card mx-3 grid grid-cols-4 gap-1 px-2 py-4">
