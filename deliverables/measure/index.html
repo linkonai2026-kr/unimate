@@ -147,7 +147,8 @@
 'use strict'
 // 기본 측정 공지: 2026-11-05 학교 사이트 원문으로 정답 확인(요약이 아니라 원문 기준)
 const DEFAULT_CFG = {
-  appUrl: 'http://localhost:3100',
+  // 배포 주소(참가자 휴대폰에서 바로 열린다). 로컬로 잴 때는 아래 설정에서 바꾼다
+  appUrl: 'https://unimate-campus.vercel.app',
   notices: [
     { key: 'A', title: '(기초) 2026-2학기 전교생 파이썬 교육 모집 안내', board: 'general', url: 'https://www.kangwon.ac.kr/ko/bbs/504/detail.do?pstSn=11591',
       answer: '마감 11/8(일) 24:00 · 방법: 구글폼으로 신청' },
@@ -226,7 +227,9 @@ let cur = null, trialIdx = 0, grade = {}
 let running = false, t0 = 0, tick = null
 
 const nextCode = () => `P${people.reduce((m, p) => Math.max(m, Number(/^P(\d+)$/.exec(p.code)?.[1]) || 0), 0) + 1}`
-const appLink = n => `${cfg.appUrl.replace(/\/+$/, '')}/notices${n.board === 'general' ? '?b=general' : ''}`
+// 로그인 없는 방문객 공지 화면을 참가자 언어로 연다(기타 언어는 영어). 데모 계정 로그인·언어 설정이 필요 없다
+const APP_LANGS = ['vi', 'zh', 'uz', 'en']
+const appLink = (n, lang) => `${cfg.appUrl.replace(/\/+$/, '')}/visit/notices?b=${n.board}&lang=${APP_LANGS.includes(lang) ? lang : 'en'}`
 
 // 순서 균형: 홀수 번째 참가자는 A=기존·B=Unimate, 짝수 번째는 A=Unimate·B=기존 (같은 공지를 두 번 읽는 학습 효과를 피함)
 const planFor = i => i % 2 === 0
@@ -274,7 +277,7 @@ function renderTrial() {
   $('methodPill').className = `pill${old ? ' old' : ''}`
   $('howTo').innerHTML = old
     ? `참가자 폰에서 학교 공지 원문을 엽니다. 번역기(파파고·구글 등)는 자유롭게 써도 됩니다.<br><a href="${esc(safeUrl(n.url))}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a>`
-    : `데모 계정 언어를 참가자 언어로 맞춘 뒤, 앱 공지 화면을 엽니다. 목록에서 이 공지를 찾게 합니다: <b>${esc(n.title)}</b><br><a href="${esc(safeUrl(appLink(n)))}" target="_blank" rel="noopener noreferrer">${esc(appLink(n))}</a>`
+    : `참가자 폰에서 아래 링크로 앱 공지 화면(로그인 없이, 참가자 언어)을 엽니다. 목록에서 이 공지를 찾게 합니다: <b>${esc(n.title)}</b><br><a href="${esc(safeUrl(appLink(n, cur.lang)))}" target="_blank" rel="noopener noreferrer">${esc(appLink(n, cur.lang))}</a>`
   $('answerKey').innerHTML = `<b>정답(진행자만 보기)</b><br>${esc(n.answer)}`
   $('clock').textContent = '0:00'
   $('startBtn').hidden = false; $('stopBtn').hidden = true; $('grade').hidden = true
