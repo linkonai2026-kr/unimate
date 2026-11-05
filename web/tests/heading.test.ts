@@ -61,3 +61,18 @@ describe('GPS 다듬기', () => {
     expect(onRoute(null, far)).toEqual(far)
   })
 })
+
+describe('GPS 다듬기: 정말 옮겨 간 경우', () => {
+  const base = { lat: 37.4524, lng: 129.162 }
+  it('정확한 값이 오차 범위 밖으로 멀리 찍히면 바로 그 위치로 옮긴다', () => {
+    const f = createGpsFilter()
+    f.push({ pos: base, acc: 10, at: 0 })
+    const far = { lat: base.lat + 200 / 111_320, lng: base.lng }
+    expect(f.push({ pos: far, acc: 8, at: 1000 })).toEqual({ pos: far, acc: 8 })
+  })
+  it('화면에 보이는 정확도는 휴대폰이 알려 준 값 그대로', () => {
+    const f = createGpsFilter()
+    f.push({ pos: base, acc: 15, at: 0 })
+    expect(f.push({ pos: { lat: base.lat + 0.0001, lng: base.lng }, acc: 40, at: 1000 }).acc).toBe(40)
+  })
+})
