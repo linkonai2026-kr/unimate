@@ -1,5 +1,6 @@
 // API 키가 없거나 호출이 실패할 때 쓰는 AI 대역
 import { LANGS, type Lang } from '../i18n'
+import type { ModerationInput, RuleId, Verdict } from '../moderation'
 import { DEMO_TR } from '../store/seed'
 import type { TrMap } from '../types'
 import type { Summary } from './index'
@@ -47,4 +48,24 @@ export function fakeSummary(title: string, body: string): Summary {
   const bullets = [...sentences, title, title, title].map(s => s.trim()).filter(Boolean).slice(0, 3)
   const m = body.match(/\d{4}\.\s?\d{1,2}\.\s?\d{1,2}|\d{1,2}월\s?\d{1,2}일/)
   return { bullets, deadline: m ? m[0] : null }
+}
+
+/**
+ * 키 없이 도는 검수 대역(테스트·E2E용): 뻔한 욕설·도박 광고 몇 개와 테스트 전용 표시어만 위반으로 본다.
+ * ("시발점"처럼 평범한 낱말 안에 들어가는 글자는 넣지 않는다)
+ */
+export const FAKE_VIOLATION_MARKER = 'UNIMATE-MOD-TEST'
+const FAKE_BANNED: [string, RuleId][] = [
+  [FAKE_VIOLATION_MARKER.toLowerCase(), 'respect'],
+  ['씨발', 'respect'], ['병신', 'respect'], ['개새끼', 'respect'], ['fuck', 'respect'],
+  ['토토사이트', 'spam'], ['카지노', 'spam'], ['casino', 'spam'],
+]
+
+export function fakeModerate(input: ModerationInput): Verdict {
+  const text = `${input.title ?? ''}
+${input.body}`.toLowerCase()
+  const hit = FAKE_BANNED.find(([word]) => text.includes(word))
+  return hit
+    ? { violation: true, rule: hit[1], severity: 'high', reason: 'Matched a banned word (offline moderator).' }
+    : { violation: false, rule: 'none', severity: 'low', reason: 'No banned word (offline moderator).' }
 }

@@ -26,6 +26,12 @@ export interface Profile {
   photo?: string | null
   /** 고정한 게시판 id(없으면 기본 고정 목록) */
   pins?: string[]
+  /** 확인된 규칙 위반 횟수(1·2번은 경고, 3번째부터 이용 제한) */
+  violations?: number
+  /** 이 시각(ms)까지 글·댓글·쪽지 금지 */
+  suspendedUntil?: number | null
+  /** 마지막 이용 제한의 규칙 id */
+  sanctionReason?: string | null
 }
 
 export interface Post {
@@ -43,6 +49,8 @@ export interface Post {
   /** 첨부 사진 id(최대 4장) */
   images: string[]
   createdAt: number
+  /** 규칙 위반으로 가려짐(목록·검색에서 빠지고 상세는 안내 문구만) */
+  hidden?: boolean
 }
 
 export interface Comment {
@@ -55,6 +63,23 @@ export interface Comment {
   lang: Lang
   tr: TrMap
   likes: string[]
+  createdAt: number
+  /** 규칙 위반으로 가려짐 */
+  hidden?: boolean
+}
+
+/** 글·댓글 신고. 한 사람이 같은 글·댓글은 한 번만 */
+export interface Report {
+  id: string
+  reporterId: string
+  kind: 'post' | 'comment'
+  targetId: string
+  /** 신고된 글·댓글 작성자 */
+  authorId: string
+  reason: string
+  detail: string
+  /** AI 검수 결과. 검수 전·실패면 pending */
+  status: 'pending' | 'violation' | 'clean'
   createdAt: number
 }
 

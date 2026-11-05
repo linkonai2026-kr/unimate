@@ -1,15 +1,16 @@
-// AI 기능의 진입점: 데모 사전 번역 → Claude(시간 제한·중단·동시 실행 제한) → 대역 순으로 처리
+// AI 기능의 진입점: 데모 사전 번역 → Claude(시간 제한·중단·동시 실행 제한) → 대역 순으로 처리. 글 검수도 같은 줄을 쓴다
 import { has } from '../env'
 import type { Lang } from '../i18n'
+import type { ModerationInput, Verdict } from '../moderation'
 import type { TrMap } from '../types'
-import { claudeList, claudeSummary, claudeTimetable, claudeTranslate } from './claude'
-import { SAMPLE_TIMETABLE, demoTranslate, fakeSummary, fakeTranslate } from './fake'
+import { claudeList, claudeModerate, claudeSummary, claudeTimetable, claudeTranslate } from './claude'
+import { SAMPLE_TIMETABLE, demoTranslate, fakeModerate, fakeSummary, fakeTranslate } from './fake'
 
 export interface ParsedCourse { name: string; place: string; day: number; start: string; end: string }
 export interface Summary { bullets: string[]; deadline: string | null }
 type ImageInput = { data: string; mediaType: 'image/png' | 'image/jpeg' | 'image/webp' }
 
-const TRANSLATE_MS = 25_000, SUMMARY_MS = 12_000, LIST_MS = 8_000, TIMETABLE_MS = 12_000
+const TRANSLATE_MS = 25_000, SUMMARY_MS = 12_000, LIST_MS = 8_000, TIMETABLE_MS = 12_000, MODERATE_MS = 15_000
 
 /** 시간이 지나면 요청 자체를 끊는다(응답만 버리고 호출은 계속 도는 일이 없게) */
 async function abortAfter<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -61,6 +62,28 @@ export async function translate(fields: Record<string, string>, context: string[
   await acquire()
   try {
     return await abortAfter(TRANSLATE_MS, signal => claudeTranslate(fields, context, signal))
+  } finally {
+    release()
+  }
+}
+
+/**
+ * 글·댓글 검수. 키가 없으면 낱말 목록 대역, 있으면 Claude(번역과 같은 동시 실행 줄).
+ * 실패·시간 초과·줄이 넘치면 null: 확실하지 않을 때는 제재하지 않는다
+ */
+export async function moderate(input: ModerationInput): Promise<Verdict | null> {
+  if (!has.ai) return fakeModerate(input)
+  try {
+    await acquire()
+  } catch (e) {
+    console.warn('[ai] moderate skipped:', e instanceof Error ? e.message : e)
+    return null
+  }
+  try {
+    return await abortAfter(MODERATE_MS, signal => claudeModerate(input, signal))
+  } catch (e) {
+    console.warn('[ai] moderate failed:', e instanceof Error ? e.message : e)
+    return null
   } finally {
     release()
   }

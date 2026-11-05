@@ -116,3 +116,50 @@ alter table reviews enable row level security;
 alter table catalog enable row level security;
 alter table grades enable row level security;
 alter table images enable row level security;
+
+-- =====================================================================================================
+-- 신고·AI 검수·자동 제재(2026-11 추가). 이 블록만 따로 SQL Editor에 붙여 실행해도 되고, 여러 번 실행해도 된다
+-- =====================================================================================================
+-- 위반 횟수(1·2번 경고, 3번째부터 이용 제한), 제한 끝 시각(ms), 마지막 제한 사유(규칙 id)
+alter table profiles add column if not exists violations int not null default 0;
+alter table profiles add column if not exists "suspendedUntil" bigint;
+alter table profiles add column if not exists "sanctionReason" text;
+-- 규칙 위반으로 가려진 글·댓글
+alter table posts add column if not exists hidden boolean not null default false;
+alter table comments add column if not exists hidden boolean not null default false;
+
+-- 신고: 한 사람이 같은 글·댓글은 한 번만. status는 AI 검수 결과(pending = 검수 전·실패)
+create table if not exists reports (
+  id text primary key, "reporterId" text not null, kind text not null check (kind in ('post', 'comment')),
+  "targetId" text not null, "authorId" text not null, reason text not null, detail text not null default '',
+  status text not null default 'pending' check (status in ('pending', 'violation', 'clean')), "createdAt" bigint not null,
+  unique ("reporterId", kind, "targetId")
+);
+create index if not exists reports_target on reports (kind, "targetId");
+alter table reports enable row level security;
+
+-- 위반 처리: 아직 가려지지 않은 글·댓글이면 가리고(행 잠금) 작성자 위반 횟수 +1, p_free번을 넘으면 이용 제한.
+-- 같은 글을 동시에 두 번 처리해도 두 번째는 hidden = false 조건에 걸려 아무것도 하지 않는다(null). 기간 상수는 앱이 넘긴다
+create or replace function apply_violation(p_kind text, p_id text, p_rule text, p_now bigint, p_free int, p_first_ms bigint, p_repeat_ms bigint)
+returns jsonb language plpgsql as $$
+declare v_author text; v_count int; v_until bigint;
+begin
+  if p_kind = 'post' then
+    update posts set hidden = true where id = p_id and hidden = false returning "authorId" into v_author;
+  elsif p_kind = 'comment' then
+    update comments set hidden = true where id = p_id and hidden = false returning "authorId" into v_author;
+  end if;
+  if v_author is null then return null; end if;
+  update profiles set violations = violations + 1 where id = v_author returning violations, "suspendedUntil" into v_count, v_until;
+  if v_count is null then
+    return jsonb_build_object('authorId', v_author, 'violations', 0, 'suspendedUntil', null);
+  end if;
+  if v_count > p_free then
+    v_until := greatest(coalesce(v_until, 0), p_now + case when v_count = p_free + 1 then p_first_ms else p_repeat_ms end);
+    update profiles set "suspendedUntil" = v_until, "sanctionReason" = p_rule where id = v_author;
+  end if;
+  return jsonb_build_object('authorId', v_author, 'violations', v_count, 'suspendedUntil', v_until);
+end
+$$;
+revoke all on function apply_violation(text, text, text, bigint, int, bigint, bigint) from public, anon, authenticated;
+grant execute on function apply_violation(text, text, text, bigint, int, bigint, bigint) to service_role;

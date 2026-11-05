@@ -7,10 +7,11 @@ import type { ImageType } from '../images'
 import type { CatalogCourse } from '../timetable/catalog'
 import type { GradeSemester } from '../timetable/grades'
 import { CURRENT_SEM } from '../timetable/sem'
-import type { Board, Comment, Course, Message, Post, Profile, Review, Table } from '../types'
+import { FIRST_SUSPENSION_MS, REPEAT_SUSPENSION_MS, WARNING_LIMIT } from '../moderation'
+import type { Board, Comment, Course, Message, Post, Profile, Report, Review, Table } from '../types'
 import {
   clampLimit, DEFAULT_TABLE_NAME, defaultTableId, MESSAGE_LIMIT, pickCourse, SCAN_LIMIT, searchTerm,
-  type NewCourse, type Store, type TrKind,
+  type NewCourse, type Store, type TrKind, type ViolationResult,
 } from './types'
 
 type R<T> = { data: T | null; error: PostgrestError | null }
@@ -26,6 +27,10 @@ const unique = <T>(list: T[]) => [...new Set(list)]
 const tidy = <T extends object>(row: T): T => Object.fromEntries(Object.entries(row).filter(([, v]) => v !== null)) as T
 /** or() 필터 문자열에 그대로 넣어도 되는 id인지(서버가 만든 uuid·시드 id만 통과) */
 const safeId = (id: string) => /^[A-Za-z0-9_-]{1,64}$/.test(id)
+
+/** 스키마 끝 "신고·AI 검수·자동 제재" 블록을 아직 실행하지 않은 DB에서 나는 오류(없는 열·표·함수) */
+const MISSING_SCHEMA = new Set(['42703', '42P01', '42883', 'PGRST202', 'PGRST204', 'PGRST205'])
+const isMissingSchema = (e: PostgrestError | null) => !!e && MISSING_SCHEMA.has(e.code)
 
 const TABLE: Record<TrKind, string> = { post: 'posts', comment: 'comments', review: 'reviews', message: 'messages', board: 'boards' }
 /** 검색 대상: 원문 제목·본문과 언어별 번역의 제목·본문 */
@@ -57,6 +62,13 @@ export function createSupabaseStore(client?: SupabaseClient): Store {
       return fallback()
     }
     throw new Error(`supabase: ${error.message}`, { cause: error })
+  }
+
+  /** 신고·제재용 열·표·함수가 없는 DB면 한 번만 경고하고, 그동안은 가림 필터 없이 읽고 신고는 받지 않는다 */
+  let modMissing = false
+  const warnModMissing = (what: string) => {
+    if (!modMissing) console.warn(`[supabase] 신고·제재 스키마가 없어 ${what}을(를) 건너뜁니다. supabase/schema.sql 끝의 "신고·AI 검수·자동 제재" 블록을 실행하세요`)
+    modMissing = true
   }
 
   const profilesIn = async (ids: string[]): Promise<Profile[]> =>
@@ -128,22 +140,35 @@ export function createSupabaseStore(client?: SupabaseClient): Store {
     },
 
     async listPosts(q = {}) {
-      let query = db.from('posts').select('*')
-      if (q.board) query = query.eq('board', q.board)
-      if (q.authorId) query = query.eq('authorId', q.authorId)
-      if (q.scrapBy) query = query.contains('scraps', [q.scrapBy])
-      const term = searchTerm(q.query)
-      // 값은 큰따옴표로 감싸 PostgREST가 . , ( ) : 같은 문자를 필터 문법으로 읽지 않게 한다(" \ % _ *는 searchTerm이 이미 뺐다)
-      if (term) query = query.or(SEARCH_COLUMNS.map(c => `${c}.ilike."%${term}%"`).join(','))
+      let ids: string[] | null = null
       if (q.commentedBy) {
         // ponytail: 최근 댓글 300개의 글만 본다(주소 길이 한도). 더 필요하면 Postgres 함수(RPC)로 옮긴다
-        const ids = unique(rows<{ postId: string }>(await db.from('comments').select('postId').eq('authorId', q.commentedBy).order('createdAt', { ascending: false }).limit(SCAN_LIMIT)).map(c => c.postId))
+        ids = unique(rows<{ postId: string }>(await db.from('comments').select('postId').eq('authorId', q.commentedBy).order('createdAt', { ascending: false }).limit(SCAN_LIMIT)).map(c => c.postId))
         if (!ids.length) return []
-        query = query.in('id', ids)
       }
+      const term = searchTerm(q.query)
       const limit = clampLimit(q.limit)
       const scan = q.hot || q.best
-      let list = rows<Post>(await query.order('createdAt', { ascending: false }).limit(scan ? SCAN_LIMIT : Math.max(limit, 1)))
+      // 쿼리 빌더는 메서드마다 자기 자신을 고치므로 다시 보낼 때는 처음부터 새로 만든다
+      const run = (hide: boolean) => {
+        let query = db.from('posts').select('*')
+        // 규칙 위반으로 가려진 글은 어느 목록·검색에도 나오지 않는다
+        if (hide) query = query.eq('hidden', false)
+        if (q.board) query = query.eq('board', q.board)
+        if (q.authorId) query = query.eq('authorId', q.authorId)
+        if (q.scrapBy) query = query.contains('scraps', [q.scrapBy])
+        // 값은 큰따옴표로 감싸 PostgREST가 . , ( ) : 같은 문자를 필터 문법으로 읽지 않게 한다(" \ % _ *는 searchTerm이 이미 뺐다)
+        if (term) query = query.or(SEARCH_COLUMNS.map(c => `${c}.ilike."%${term}%"`).join(','))
+        if (ids) query = query.in('id', ids)
+        return query.order('createdAt', { ascending: false }).limit(scan ? SCAN_LIMIT : Math.max(limit, 1))
+      }
+      let res = await run(!modMissing)
+      // hidden 열이 아직 없는 DB면 한 번 경고하고 필터 없이 다시 읽는다
+      if (!modMissing && isMissingSchema(res.error)) {
+        warnModMissing('가린 글 거르기')
+        res = await run(false)
+      }
+      let list = rows<Post>(res)
       if (q.hot) list = list.filter(p => p.likes.length >= HOT_MIN)
       if (q.best) list = list.sort((a, b) => b.likes.length - a.likes.length || b.createdAt - a.createdAt)
       return list.slice(0, limit)
@@ -325,6 +350,39 @@ export function createSupabaseStore(client?: SupabaseClient): Store {
       }
       must(await db.from('reviews').insert(row))
       return row
+    },
+
+    async createReport(r) {
+      const row: Report = { id: randomUUID(), reporterId: r.reporterId, kind: r.kind, targetId: r.targetId, authorId: r.authorId, reason: r.reason, detail: r.detail, status: 'pending', createdAt: now() }
+      const { error } = await db.from('reports').insert(row)
+      if (!error) return row
+      // (reporterId, kind, targetId) unique 제약: 이미 신고함
+      if (error.code === '23505') return null
+      if (isMissingSchema(error)) warnModMissing('신고 저장')
+      throw new Error(`supabase: ${error.message}`, { cause: error })
+    },
+    async listReports(kind, targetId) {
+      const r = await db.from('reports').select('*').eq('kind', kind).eq('targetId', targetId).order('createdAt')
+      if (isMissingSchema(r.error)) { warnModMissing('신고 목록'); return [] }
+      return rows<Report>(r)
+    },
+    async resolveReports(kind, targetId, status) {
+      const { error } = await db.from('reports').update({ status }).eq('kind', kind).eq('targetId', targetId).eq('status', 'pending')
+      if (isMissingSchema(error)) return warnModMissing('신고 결과 적기')
+      if (error) throw new Error(`supabase: ${error.message}`, { cause: error })
+    },
+    // 가리기 + 위반 횟수 +1 + 제한 계산을 Postgres 함수 하나(한 트랜잭션)로. 함수가 없는 DB면 제재하지 않는다(안전한 쪽)
+    async applyViolation(kind, id, rule, at) {
+      const { data, error } = await db.rpc('apply_violation', {
+        p_kind: kind, p_id: id, p_rule: rule, p_now: at,
+        p_free: WARNING_LIMIT, p_first_ms: FIRST_SUSPENSION_MS, p_repeat_ms: REPEAT_SUSPENSION_MS,
+      })
+      if (isMissingSchema(error)) { warnModMissing('위반 처리'); return null }
+      if (error) throw new Error(`supabase: ${error.message}`, { cause: error })
+      const out = data as { authorId: string; violations: number; suspendedUntil: number | string | null } | null
+      if (!out) return null
+      // bigint는 JSON에서 숫자로 오지만, 혹시 문자열이어도 숫자로
+      return { authorId: out.authorId, violations: Number(out.violations), suspendedUntil: out.suspendedUntil == null ? null : Number(out.suspendedUntil) } satisfies ViolationResult
     },
 
     async listBoards() { return rows<Board>(await db.from('boards').select('*').order('createdAt')) },

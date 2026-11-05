@@ -157,6 +157,7 @@ export function seedData(): MemoryData {
     catalog,
     images: [],
     boards: [],
+    reports: [],
     grades: {
       'u-minjun': [
         { name: '1학년 1학기', rows: [{ name: '공학수학1', credit: 3, grade: 'B+', major: true }, { name: '대학영어', credit: 2, grade: 'A0', major: false }, { name: '일반물리', credit: 3, grade: 'B0', major: false }] },

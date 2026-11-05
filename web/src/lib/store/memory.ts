@@ -5,7 +5,8 @@ import type { ImageType } from '../images'
 import type { CatalogCourse } from '../timetable/catalog'
 import type { GradeSemester } from '../timetable/grades'
 import { CURRENT_SEM } from '../timetable/sem'
-import type { Board, Comment, Course, Lang, Message, Post, Profile, Review, Table, TrMap } from '../types'
+import { nextSuspension, WARNING_LIMIT } from '../moderation'
+import type { Board, Comment, Course, Lang, Message, Post, Profile, Report, Review, Table, TrMap } from '../types'
 import { seedData } from './seed'
 import {
   clampLimit, DEFAULT_TABLE_NAME, defaultTableId, MESSAGE_LIMIT, pickCourse, SCAN_LIMIT, searchTerm,
@@ -27,9 +28,10 @@ export interface MemoryData {
   messages: Message[]
   reviews: Review[]
   boards: Board[]
+  reports: Report[]
 }
 
-const empty = (): MemoryData => ({ profiles: [], posts: [], comments: [], courses: [], tables: [], catalog: [], grades: {}, images: [], friends: [], requests: [], messages: [], reviews: [], boards: [] })
+const empty = (): MemoryData => ({ profiles: [], posts: [], comments: [], courses: [], tables: [], catalog: [], grades: {}, images: [], friends: [], requests: [], messages: [], reviews: [], boards: [], reports: [] })
 const newest = <T extends { createdAt: number }>(a: T, b: T) => b.createdAt - a.createdAt
 const oldest = <T extends { createdAt: number }>(a: T, b: T) => a.createdAt - b.createdAt
 const copy = <T>(v: T): T => structuredClone(v)
@@ -104,7 +106,9 @@ export function createMemoryStore(seed = true): Store {
       // 검색은 제목·본문과 각 언어 번역의 제목·본문을 필드마다 본다(Supabase의 ilike와 같게)
       const matches = (p: Post) => !term || [p.title, p.body, ...Object.values(p.tr).flatMap(f => [f?.title, f?.body])]
         .some(s => typeof s === 'string' && s.toLowerCase().includes(term))
+      // 규칙 위반으로 가려진 글은 어느 목록·검색에도 나오지 않는다
       let list = d.posts.filter(p =>
+        !p.hidden &&
         (!q.board || p.board === q.board) &&
         (!q.authorId || p.authorId === q.authorId) &&
         (!q.scrapBy || p.scraps.includes(q.scrapBy)) &&
@@ -261,6 +265,31 @@ export function createMemoryStore(seed = true): Store {
       }
       d.reviews.push(row)
       return copy(row)
+    },
+
+    async createReport(r) {
+      // Supabase의 (reporterId, kind, targetId) unique 제약과 같게
+      if (d.reports.some(x => x.reporterId === r.reporterId && x.kind === r.kind && x.targetId === r.targetId)) return null
+      const row: Report = { id: randomUUID(), reporterId: r.reporterId, kind: r.kind, targetId: r.targetId, authorId: r.authorId, reason: r.reason, detail: r.detail, status: 'pending', createdAt: now() }
+      d.reports.push(row)
+      return copy(row)
+    },
+    async listReports(kind, targetId) { return copy(d.reports.filter(r => r.kind === kind && r.targetId === targetId).sort(oldest)) },
+    async resolveReports(kind, targetId, status) {
+      for (const r of d.reports) if (r.kind === kind && r.targetId === targetId && r.status === 'pending') r.status = status
+    },
+    // 한 번의 동기 실행이라 중간에 다른 요청이 끼지 않는다(Supabase는 apply_violation 함수 하나로 같은 일을 한다)
+    async applyViolation(kind, id, rule, at) {
+      const row = (kind === 'post' ? d.posts : d.comments).find(x => x.id === id)
+      if (!row || row.hidden) return null
+      row.hidden = true
+      const author = d.profiles.find(p => p.id === row.authorId)
+      if (!author) return { authorId: row.authorId, violations: 0, suspendedUntil: null }
+      const violations = (author.violations ?? 0) + 1
+      const until = nextSuspension(violations, at, author.suspendedUntil)
+      author.violations = violations
+      if (violations > WARNING_LIMIT) Object.assign(author, { suspendedUntil: until, sanctionReason: rule })
+      return { authorId: author.id, violations, suspendedUntil: until }
     },
 
     async listBoards() { return copy([...d.boards].sort(oldest)) },

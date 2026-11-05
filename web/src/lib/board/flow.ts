@@ -1,5 +1,6 @@
-// 글·댓글·쪽지·평가를 저장하고, 응답 후에 번역해 다시 알리는 공통 흐름과 화면용 변환
+// 글·댓글·쪽지·평가를 저장하고, 응답 후에 번역(글·댓글은 AI 검수도)해 다시 알리는 공통 흐름과 화면용 변환
 import { t, type Lang } from '../i18n'
+import { reviewContent, type ModerationDeps } from '../moderation'
 import type { NewComment, NewPost, Store, TrKind } from '../store/types'
 import { pickText } from '../text'
 import type { Comment, LiveEvent, Message, Post, TrMap } from '../types'
@@ -11,6 +12,21 @@ export interface FlowDeps {
   publish: (e: LiveEvent) => Promise<void>
   /** 응답을 보낸 뒤 실행(서버 액션에서는 next/server의 after) */
   defer: (fn: () => Promise<void>) => void
+  /** 글·댓글 AI 검수(있으면 새 글·댓글마다 응답 뒤에 검수). 실패면 null */
+  moderate?: ModerationDeps['moderate']
+}
+
+/** 응답 뒤에 AI 검수 → 위반이면 가리고 경고·제한. 어떤 실패도 글 등록에는 영향이 없다 */
+export function moderateLater(d: FlowDeps, kind: 'post' | 'comment', id: string) {
+  const moderate = d.moderate
+  if (!moderate) return
+  d.defer(async () => {
+    try {
+      await reviewContent({ store: d.store, moderate, publish: d.publish }, kind, id)
+    } catch (e) {
+      console.warn(`[moderateLater] ${kind} ${id}:`, e instanceof Error ? e.message : e)
+    }
+  })
 }
 
 /**
@@ -44,6 +60,7 @@ export async function createPostWithTranslation(d: FlowDeps, input: NewPost): Pr
   const topics = [`board:${post.board}`, 'board:all']
   for (const topic of topics) await d.publish({ topic, kind: 'new', id: post.id })
   translateLater(d, 'post', post.id, { title: post.title, body: post.body }, [...topics, `post:${post.id}`])
+  moderateLater(d, 'post', post.id)
   return post
 }
 
@@ -56,6 +73,7 @@ export async function createCommentWithTranslation(d: FlowDeps, input: NewCommen
     const idx = all.findIndex(x => x.id === c.id)
     return commentContext(post, idx > 0 ? all.slice(0, idx) : [])
   })
+  moderateLater(d, 'comment', c.id)
   return c
 }
 
@@ -95,15 +113,19 @@ function authorOf(anonymous: boolean, ctx: Ctx) {
   }
 }
 
+/** 가린 글·댓글은 화면으로 내보내는 값에 원문·번역을 담지 않는다(쓴 사람에게도) */
+const GONE = { text: '', translated: false }
+
 export function toPostView(p: Post, ctx: Ctx & { comments: number }) {
-  const title = pickText(p, 'title', p.title, ctx.viewer)
-  const body = pickText(p, 'body', p.body, ctx.viewer)
+  const hidden = !!p.hidden
+  const title = hidden ? GONE : pickText(p, 'title', p.title, ctx.viewer)
+  const body = hidden ? GONE : pickText(p, 'body', p.body, ctx.viewer)
   return {
-    id: p.id, board: p.board, from: p.lang, createdAt: p.createdAt,
-    title: title.text, body: body.text, originalTitle: p.title, originalBody: p.body,
+    id: p.id, board: p.board, from: p.lang, createdAt: p.createdAt, hidden,
+    title: title.text, body: body.text, originalTitle: hidden ? '' : p.title, originalBody: hidden ? '' : p.body,
     translated: title.translated || body.translated, pending: ctx.viewer !== p.lang && isPending(p),
     ...authorOf(p.anonymous, ctx),
-    images: p.images ?? [],
+    images: hidden ? [] : (p.images ?? []),
     likes: p.likes.length, liked: p.likes.includes(ctx.viewerId),
     scraps: p.scraps.length, scraped: p.scraps.includes(ctx.viewerId),
     comments: ctx.comments,
@@ -119,14 +141,15 @@ export function anonNumbers(postAuthorId: string, comments: { authorId: string; 
 }
 
 export function toCommentView(c: Comment, ctx: Ctx & { isPostAuthor: boolean; anonNo?: number }) {
-  const body = pickText(c, 'body', c.body, ctx.viewer)
+  const hidden = !!c.hidden
+  const body = hidden ? GONE : pickText(c, 'body', c.body, ctx.viewer)
   const who = authorOf(c.anonymous, ctx)
   const writer = t(ctx.viewer, 'writer')
   if (c.anonymous) who.author = ctx.isPostAuthor ? `${t(ctx.viewer, 'anonymous')}(${writer})` : `${t(ctx.viewer, 'anonymous')}${ctx.anonNo ?? ''}`
   else if (ctx.isPostAuthor) who.author = `${who.author}(${writer})`
   return {
-    id: c.id, parentId: c.parentId, from: c.lang, createdAt: c.createdAt,
-    body: body.text, originalBody: c.body, translated: body.translated, pending: ctx.viewer !== c.lang && isPending(c),
+    id: c.id, parentId: c.parentId, from: c.lang, createdAt: c.createdAt, hidden,
+    body: body.text, originalBody: hidden ? '' : c.body, translated: body.translated, pending: ctx.viewer !== c.lang && isPending(c),
     ...who, isPostAuthor: ctx.isPostAuthor,
     likes: c.likes.length, liked: c.likes.includes(ctx.viewerId), mine: c.authorId === ctx.viewerId,
   }

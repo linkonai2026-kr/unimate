@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto'
 import type { ImageType } from '../images'
 import type { CatalogCourse } from '../timetable/catalog'
 import type { GradeSemester } from '../timetable/grades'
-import type { Board, Comment, Course, Lang, Message, Post, Profile, Review, Table, TrMap } from '../types'
+import type { RuleId } from '../moderation'
+import type { Board, Comment, Course, Lang, Message, Post, Profile, Report, Review, Table, TrMap } from '../types'
 
 export type NewPost = Pick<Post, 'board' | 'authorId' | 'anonymous' | 'title' | 'body' | 'lang'> & { images?: string[] }
 export type NewComment = Pick<Comment, 'postId' | 'parentId' | 'authorId' | 'anonymous' | 'body' | 'lang'>
@@ -14,6 +15,10 @@ export type NewProfile = Omit<Profile, 'id' | 'createdAt'>
 export type ProfilePatch = Partial<Pick<Profile, 'nickname' | 'lang' | 'nationality' | 'avatar' | 'major' | 'year' | 'passHash' | 'photo' | 'pins'>>
 export type TrKind = 'post' | 'comment' | 'review' | 'message' | 'board'
 export type NewBoard = Pick<Board, 'name' | 'desc' | 'lang' | 'ownerId'>
+export type NewReport = Pick<Report, 'reporterId' | 'kind' | 'targetId' | 'authorId' | 'reason' | 'detail'>
+export type ReportKind = Report['kind']
+/** 위반 처리 결과: 작성자와 올라간 위반 횟수, 제한 끝 시각(없으면 null) */
+export interface ViolationResult { authorId: string; violations: number; suspendedUntil: number | null }
 
 export interface PostQuery {
   board?: string
@@ -122,6 +127,21 @@ export interface Store {
   /** 대화 상대별 마지막 쪽지(최근 대화 순) */
   listThreads(userId: string): Promise<{ other: Profile; last: Message }[]>
   createMessage(m: NewMessage): Promise<Message>
+
+  /**
+   * 신고 저장. 같은 사람이 같은 글·댓글을 이미 신고했으면 null.
+   * (Supabase에 신고 표가 아직 없으면 경고를 남기고 던진다 → 호출 쪽이 "지금은 신고를 받을 수 없어요")
+   */
+  createReport(r: NewReport): Promise<Report | null>
+  /** 글·댓글 하나에 들어온 신고(오래된 순) */
+  listReports(kind: ReportKind, targetId: string): Promise<Report[]>
+  /** 검수 결과를 그 글·댓글의 대기 중 신고에 적는다 */
+  resolveReports(kind: ReportKind, targetId: string, status: 'violation' | 'clean'): Promise<void>
+  /**
+   * 위반 처리(한 번에, 경합에 안전): 아직 가려지지 않은 글·댓글이면 가리고 작성자 위반 횟수 +1,
+   * 3번째부터는 이용 제한 끝 시각과 사유를 적는다. 없거나 이미 가려졌으면 null(두 번 세지 않는다)
+   */
+  applyViolation(kind: ReportKind, id: string, rule: RuleId, now: number): Promise<ViolationResult | null>
 
   listReviews(courseName?: string): Promise<Review[]>
   getReview(id: string): Promise<Review | null>
