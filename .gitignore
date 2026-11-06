@@ -27,3 +27,7 @@ deliverables/presentation/_*
 
 # 발표 파일(pptx)은 용량이 커서 GitHub에 올리지 않는다(발표 때 쓰는 파일은 내 컴퓨터에만 둔다)
 deliverables/presentation/*.pptx
+deliverables/presentation/*.pdf
+
+# 발표 제작 폴더 전체(스크립트·측정 데이터·영상·PPT·대본)는 GitHub에 올리지 않는다. 내 컴퓨터에만 둔다
+deliverables/presentation/

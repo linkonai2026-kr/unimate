@@ -110,7 +110,7 @@ Unimate는 이런 캠퍼스 생활을 **내 언어 하나로** 할 수 있게 �
 
 <table>
 <tr>
-<td width="180" align="center"><img src="deliverables/presentation/unimate-qr.png" alt="Unimate QR" width="160"></td>
+<td width="180" align="center"><img src="docs/unimate-qr.png" alt="Unimate QR" width="160"></td>
 <td>
 
 **휴대폰 카메라로 QR을 찍거나 [unimate-campus.vercel.app](https://unimate-campus.vercel.app)을 여세요.**
@@ -271,7 +271,6 @@ Vitest는 외부 키를 비운 채로 돌아서 항상 메모리 저장소와 �
 | `web/src/lib` | 저장소(`store`), 인증(`auth`), 학교 데이터(`school`), 지도(`map`), 시간표(`timetable`), AI(`ai`), 검수·제재(`moderation.ts`) |
 | `web/tests`, `web/e2e` | 단위 테스트, 브라우저 테스트 |
 | `deliverables/measure` | 공지 읽기 측정 도구([설명](deliverables/measure/README.md)) |
-| `deliverables/presentation` | 발표 자료용 화면 녹화·QR 스크립트 |
 
 </details>
 
